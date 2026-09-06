@@ -1,0 +1,338 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F11 AI Learning Buddy API
+  version: 1.0.0-design
+  description: >
+    Design contract for private learner-owned Chinese learning conversations.
+    Public paths are served below /api/v1 and use the standard success/data/error/meta
+    envelope. Spring Boot owns safety, scenario enforcement, ownership, context,
+    F03 usage and persistence. The private ai-service operation is never exposed
+    to the browser and has no durable learner memory.
+servers:
+  - url: /api/v1
+tags:
+  - name: AiConversations
+  - name: AiMessages
+  - name: PrivateAiBuddy
+paths:
+  /ai-conversations:
+    get:
+      tags: [AiConversations]
+      summary: List active conversations owned by the caller
+      operationId: listAiConversations
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    post:
+      tags: [AiConversations]
+      summary: Create a conversation with one immutable learning scenario
+      operationId: createAiConversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateConversationRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /ai-conversations/{conversationId}:
+    get:
+      tags: [AiConversations]
+      summary: Read a caller-owned active conversation and paginated messages
+      operationId: getAiConversation
+      parameters:
+        - $ref: '#/components/parameters/ConversationId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationDetailEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [AiConversations]
+      summary: Rename the caller-owned conversation without changing its scenario
+      operationId: renameAiConversation
+      parameters: [ { $ref: '#/components/parameters/ConversationId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RenameConversationRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConversationEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [AiConversations]
+      summary: Hide the caller-owned conversation immediately and exclude it from future context
+      operationId: deleteAiConversation
+      parameters: [ { $ref: '#/components/parameters/ConversationId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/EmptySuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /ai-conversations/{conversationId}/messages:
+    post:
+      tags: [AiMessages]
+      summary: Send a safe learner message and request one bounded assistant response
+      operationId: createAiMessage
+      parameters: [ { $ref: '#/components/parameters/ConversationId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateMessageRequest' }
+      responses:
+        '202':
+          description: Eligible request accepted; projection may be PENDING or COMPLETE.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MessagePairEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/ProviderUnavailable' }
+        '503': { $ref: '#/components/responses/ProviderUnavailable' }
+  /internal/v1/ai-buddy/respond:
+    post:
+      tags: [PrivateAiBuddy]
+      summary: Private Spring Boot to ai-service bounded learning response
+      operationId: respondAiBuddyInternal
+      description: >
+        Private-network-only operation. Spring Boot sends only the chosen scenario,
+        current vetted learner message and no more than ten recent COMPLETE messages
+        from the same conversation. It never sends browser JWT, F03 decision,
+        database graph or cross-conversation history.
+      servers:
+        - url: /
+      security:
+        - internalServiceAuth: []
+      x-internal: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PrivateBuddyRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivateBuddyResponse' }
+        '400': { $ref: '#/components/responses/InternalValidationError' }
+        '503': { $ref: '#/components/responses/InternalProviderUnavailable' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    internalServiceAuth:
+      type: apiKey
+      in: header
+      name: X-Internal-Signature
+      description: HMAC or mTLS-authenticated service call with timestamp and nonce replay protection.
+  parameters:
+    ConversationId: { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+  responses:
+    EmptySuccess:
+      description: Command accepted and completed
+      content: { application/json: { schema: { $ref: '#/components/schemas/EmptySuccessEnvelope' } } }
+    ValidationError:
+      description: Invalid, unsafe, oversized or out-of-scenario request; no message or allowance reservation is created
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Conversation is absent, deleted or not owned; no disclosure distinction
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    StateConflict:
+      description: Changed idempotency request or invalid conversation/message state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    RateLimited:
+      description: F03 allowance unavailable or server throttle reached before private call
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    ProviderUnavailable:
+      description: Safe ai-service or provider failure; prompts and model trace are not exposed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    InternalValidationError:
+      description: Private request or model output schema is invalid
+      content: { application/json: { schema: { $ref: '#/components/schemas/InternalError' } } }
+    InternalProviderUnavailable:
+      description: Provider or private service timeout/unavailability
+      content: { application/json: { schema: { $ref: '#/components/schemas/InternalError' } } }
+  schemas:
+    Scenario:
+      type: string
+      enum: [DAILY_CONVERSATION, VOCABULARY_GRAMMAR, ROLE_PLAY]
+    CreateConversationRequest:
+      type: object
+      required: [scenario]
+      properties:
+        scenario: { $ref: '#/components/schemas/Scenario' }
+        title: { type: string, minLength: 1, maxLength: 120 }
+      additionalProperties: false
+    RenameConversationRequest:
+      type: object
+      required: [title]
+      properties: { title: { type: string, minLength: 1, maxLength: 120 } }
+      additionalProperties: false
+    CreateMessageRequest:
+      type: object
+      required: [content, clientRequestId]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 1000 }
+        clientRequestId: { type: string, format: uuid }
+      additionalProperties: false
+    Conversation:
+      type: object
+      required: [id, scenario, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        scenario: { $ref: '#/components/schemas/Scenario' }
+        title: { type: [string, 'null'], maxLength: 120 }
+        status: { type: string, enum: [ACTIVE] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AiMessage:
+      type: object
+      required: [id, sequenceNumber, sender, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        sequenceNumber: { type: integer, minimum: 1 }
+        sender: { type: string, enum: [LEARNER, ASSISTANT] }
+        status: { type: string, enum: [PENDING, COMPLETE, FAILED] }
+        content: { type: [string, 'null'], maxLength: 1000 }
+        vietnameseExplanation: { type: [string, 'null'], maxLength: 1000 }
+        suggestion: { type: [string, 'null'], maxLength: 500 }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+    ConversationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Conversation'
+        - type: object
+          required: [messages]
+          properties:
+            messages: { type: array, items: { $ref: '#/components/schemas/AiMessage' } }
+    MessagePair:
+      type: object
+      required: [learnerMessage, assistantMessage]
+      properties:
+        learnerMessage: { $ref: '#/components/schemas/AiMessage' }
+        assistantMessage: { $ref: '#/components/schemas/AiMessage' }
+    ContextMessage:
+      type: object
+      required: [sender, content]
+      properties:
+        sender: { type: string, enum: [LEARNER, ASSISTANT] }
+        content: { type: string, minLength: 1, maxLength: 1000 }
+    PrivateBuddyRequest:
+      type: object
+      required: [correlationId, requestId, scenario, currentMessage, context]
+      properties:
+        correlationId: { type: string, format: uuid }
+        requestId: { type: string, format: uuid }
+        scenario: { $ref: '#/components/schemas/Scenario' }
+        currentMessage: { type: string, minLength: 1, maxLength: 1000 }
+        context:
+          type: array
+          maxItems: 10
+          items: { $ref: '#/components/schemas/ContextMessage' }
+      additionalProperties: false
+    PrivateBuddyResponse:
+      type: object
+      required: [chineseResponse, vietnameseExplanation]
+      properties:
+        chineseResponse: { type: string, minLength: 1, maxLength: 1000 }
+        vietnameseExplanation: { type: string, minLength: 1, maxLength: 1000 }
+        suggestion: { type: [string, 'null'], maxLength: 500 }
+    PageMeta:
+      type: object
+      required: [correlationId, page, size]
+      properties:
+        correlationId: { type: string, format: uuid }
+        page: { type: integer }
+        size: { type: integer }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties: { correlationId: { type: string, format: uuid } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT, IDEMPOTENCY_CONFLICT, AI_QUOTA_EXCEEDED, RATE_LIMITED, PROVIDER_UNAVAILABLE] }
+        message: { type: string }
+    InternalError:
+      type: object
+      required: [code]
+      properties: { code: { type: string, enum: [INVALID_INTERNAL_REQUEST, INVALID_MODEL_RESULT, PROVIDER_UNAVAILABLE] } }
+    ConversationEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/Conversation' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ConversationListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/Conversation' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    ConversationDetailEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/ConversationDetail' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    MessagePairEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/MessagePair' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    EmptySuccessEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: object }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []
+

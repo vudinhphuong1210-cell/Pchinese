@@ -1,0 +1,542 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F04 Content Administration API
+  version: 1.0.0-design
+  description: >
+    Design contract for versioned ADMIN content management. Public read paths
+    expose only publishable Free content; administrative mutations use the
+    standard success/data/error/meta envelope and require expectedVersion.
+servers:
+  - url: /api/v1
+tags:
+  - name: AdminContent
+  - name: PublicContent
+paths:
+  /admin/content/topics:
+    get:
+      tags: [AdminContent]
+      summary: List versioned topic projections for ADMIN
+      operationId: listAdminTopics
+      parameters: [ { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Size' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ContentListSuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /admin/content/lessons:
+    get:
+      tags: [AdminContent]
+      summary: List versioned lesson projections for ADMIN
+      operationId: listAdminLessons
+      parameters: [ { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Size' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ContentListSuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /admin/content/segments:
+    get:
+      tags: [AdminContent]
+      summary: List versioned segment projections for ADMIN
+      operationId: listAdminSegments
+      parameters: [ { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Size' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ContentListSuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /admin/content/media:
+    get:
+      tags: [AdminContent]
+      summary: List safe media-management projections for ADMIN
+      operationId: listAdminMedia
+      parameters: [ { $ref: '#/components/parameters/Page' }, { $ref: '#/components/parameters/Size' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ContentListSuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /topics:
+    post:
+      tags: [AdminContent]
+      summary: Create a draft topic
+      operationId: createTopic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TopicCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /topics/{topicId}:
+    patch:
+      tags: [AdminContent]
+      summary: Update an existing topic with optimistic versioning
+      operationId: updateTopic
+      parameters: [ { $ref: '#/components/parameters/TopicId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TopicUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /topics/{topicId}/publish:
+    post:
+      tags: [AdminContent]
+      summary: Publish a topic
+      operationId: publishTopic
+      parameters: [ { $ref: '#/components/parameters/TopicId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /topics/{topicId}/unpublish:
+    post:
+      tags: [AdminContent]
+      summary: Unpublish a topic
+      operationId: unpublishTopic
+      parameters: [ { $ref: '#/components/parameters/TopicId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /topics/{topicId}/archive:
+    post:
+      tags: [AdminContent]
+      summary: Archive a topic
+      operationId: archiveTopic
+      parameters: [ { $ref: '#/components/parameters/TopicId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /lessons:
+    post:
+      tags: [AdminContent]
+      summary: Create a Free lesson
+      operationId: createLesson
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LessonCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /lessons/{lessonId}:
+    patch:
+      tags: [AdminContent]
+      summary: Update an existing Free lesson
+      operationId: updateLesson
+      parameters: [ { $ref: '#/components/parameters/LessonId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VersionedContentRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /lessons/{lessonId}/publish:
+    post:
+      tags: [AdminContent]
+      summary: Publish a lesson
+      operationId: publishLesson
+      parameters: [ { $ref: '#/components/parameters/LessonId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /lessons/{lessonId}/unpublish:
+    post:
+      tags: [AdminContent]
+      summary: Unpublish a lesson
+      operationId: unpublishLesson
+      parameters: [ { $ref: '#/components/parameters/LessonId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /lessons/{lessonId}/archive:
+    post:
+      tags: [AdminContent]
+      summary: Archive a lesson
+      operationId: archiveLesson
+      parameters: [ { $ref: '#/components/parameters/LessonId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /segments:
+    post:
+      tags: [AdminContent]
+      summary: Create a lesson segment
+      operationId: createSegment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SegmentCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /segments/{segmentId}:
+    patch:
+      tags: [AdminContent]
+      summary: Update an existing lesson segment with optimistic versioning
+      operationId: updateSegment
+      parameters: [ { $ref: '#/components/parameters/SegmentId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SegmentUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /segments/{segmentId}/publish:
+    post:
+      tags: [AdminContent]
+      summary: Publish a segment
+      operationId: publishSegment
+      parameters: [ { $ref: '#/components/parameters/SegmentId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /segments/{segmentId}/unpublish:
+    post:
+      tags: [AdminContent]
+      summary: Unpublish a segment
+      operationId: unpublishSegment
+      parameters: [ { $ref: '#/components/parameters/SegmentId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /segments/{segmentId}/archive:
+    post:
+      tags: [AdminContent]
+      summary: Archive a segment
+      operationId: archiveSegment
+      parameters: [ { $ref: '#/components/parameters/SegmentId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /media:
+    post:
+      tags: [AdminContent]
+      summary: Upload media or register allowlisted provider metadata
+      operationId: createMedia
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/MediaCreateRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /media/{mediaAssetId}:
+    patch:
+      tags: [AdminContent]
+      summary: Update allowlisted media metadata with optimistic versioning
+      operationId: updateMedia
+      parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MediaUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /media/{mediaAssetId}/approve:
+    post:
+      tags: [AdminContent]
+      summary: Approve a media asset
+      operationId: approveMedia
+      parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /media/{mediaAssetId}/reject:
+    post:
+      tags: [AdminContent]
+      summary: Reject a media asset
+      operationId: rejectMedia
+      parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /media/{mediaAssetId}/quarantine:
+    post:
+      tags: [AdminContent]
+      summary: Quarantine a media asset
+      operationId: quarantineMedia
+      parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VersionedCommandRequest' } } }
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    TopicId: { name: topicId, in: path, required: true, schema: { type: string, format: uuid } }
+    LessonId: { name: lessonId, in: path, required: true, schema: { type: string, format: uuid } }
+    SegmentId: { name: segmentId, in: path, required: true, schema: { type: string, format: uuid } }
+    MediaAssetId: { name: mediaAssetId, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+  responses:
+    ContentSuccess:
+      description: Latest safe versioned content projection
+      content: { application/json: { schema: { $ref: '#/components/schemas/ContentEnvelope' } } }
+    ContentListSuccess:
+      description: Paginated safe content-management projections
+      content: { application/json: { schema: { $ref: '#/components/schemas/ContentListEnvelope' } } }
+    ValidationError:
+      description: Safe input or lifecycle validation error
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    AuthorizationDenied:
+      description: Caller lacks ADMIN role
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Resource absent or unavailable
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    StateConflict:
+      description: Stale expectedVersion or forbidden state transition
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    TopicCreateRequest:
+      type: object
+      required: [title, slug, hskLevel, sortOrder]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: '^[a-z0-9-]+$' }
+        description: { type: string, maxLength: 4000 }
+        hskLevel: { type: integer, minimum: 1, maximum: 9 }
+        sortOrder: { type: integer, minimum: 0 }
+      additionalProperties: false
+    TopicUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/TopicCreateRequest'
+        - type: object
+          required: [expectedVersion]
+          properties: { expectedVersion: { type: integer, minimum: 0 } }
+    LessonCreateRequest:
+      type: object
+      required: [topicId, title, slug, hskLevel, sortOrder]
+      properties:
+        topicId: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: '^[a-z0-9-]+$' }
+        hskLevel: { type: integer, minimum: 1, maximum: 9 }
+        sortOrder: { type: integer, minimum: 0 }
+        accessLevel: { type: string, const: FREE }
+      additionalProperties: false
+    VersionedContentRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 4000 }
+        sortOrder: { type: integer, minimum: 0 }
+        expectedVersion: { type: integer, minimum: 0 }
+      additionalProperties: false
+    SegmentCreateRequest:
+      type: object
+      required: [lessonId, mediaAssetId, sequenceNo]
+      properties:
+        lessonId: { type: string, format: uuid }
+        mediaAssetId: { type: string, format: uuid }
+        sequenceNo: { type: integer, minimum: 1 }
+        transcript: { type: string, maxLength: 20000 }
+        timing: { type: object }
+      additionalProperties: false
+    SegmentUpdateRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        mediaAssetId: { type: string, format: uuid }
+        sequenceNo: { type: integer, minimum: 1 }
+        transcript: { type: string, maxLength: 20000 }
+        timing: { type: object }
+        expectedVersion: { type: integer, minimum: 0 }
+      additionalProperties: false
+    MediaCreateRequest:
+      type: object
+      properties:
+        file: { type: string, format: binary }
+        providerMetadata: { type: string }
+        expectedVersion: { type: integer, minimum: 0 }
+      anyOf:
+        - required: [file]
+        - required: [providerMetadata]
+      additionalProperties: false
+    MediaUpdateRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        altText: { type: string, maxLength: 1000 }
+        providerMetadata: { type: string }
+        expectedVersion: { type: integer, minimum: 0 }
+      additionalProperties: false
+    VersionedCommandRequest:
+      type: object
+      required: [expectedVersion]
+      properties: { expectedVersion: { type: integer, minimum: 0 } }
+      additionalProperties: false
+    ContentProjection:
+      type: object
+      required: [id, entityType, publicationStatus, version]
+      properties:
+        id: { type: string, format: uuid }
+        entityType: { type: string, enum: [TOPIC, LESSON, SEGMENT, MEDIA] }
+        publicationStatus: { type: string, enum: [DRAFT, PUBLISHED, UNPUBLISHED, ARCHIVED, PENDING_SCAN, APPROVED, REJECTED, QUARANTINED] }
+        version: { type: integer, minimum: 0 }
+    PageMeta:
+      type: object
+      required: [page, size]
+      properties: { page: { type: integer }, size: { type: integer } }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties: { correlationId: { type: string, format: uuid } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, AUTHORIZATION_DENIED, RESOURCE_NOT_FOUND, STATE_CONFLICT] }
+        message: { type: string }
+    ContentEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/ContentProjection' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ContentListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/ContentProjection' } }
+        error: { type: 'null' }
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/Meta'
+            - $ref: '#/components/schemas/PageMeta'
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []

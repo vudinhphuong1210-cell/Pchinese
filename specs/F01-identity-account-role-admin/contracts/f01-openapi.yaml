@@ -1,0 +1,588 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F01 Identity and Account API
+  version: 1.0.0-design
+  description: >
+    Design contract for F01. All public paths are served below /api/v1 and use
+    the standard success/data/error/meta envelope. Raw passwords, refresh
+    credentials, JWT internals and learner-private data are never returned.
+servers:
+  - url: /api/v1
+tags:
+  - name: Auth
+  - name: AdminAccountRoles
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Start a neutral registration/verification flow
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '202':
+          description: Neutral accepted result for new, existing or ineligible email; never enumerates accounts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NeutralAcceptedEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/email-verifications:
+    post:
+      tags: [Auth]
+      summary: Request or resend a verification flow without account enumeration
+      operationId: requestEmailVerification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+      responses:
+        '202':
+          description: Neutral accepted result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NeutralAcceptedEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/email-verifications/confirm:
+    post:
+      tags: [Auth]
+      summary: Consume one email-verification credential
+      operationId: confirmEmailVerification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationTokenRequest'
+      responses:
+        '200':
+          description: Verified account state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifiedAccountEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate an ACTIVE verified account
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Access-session result. Web refresh value is set only by Set-Cookie.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+              description: Web only; protected __Host-pchinese-refresh cookie and CSRF cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
+        '409':
+          $ref: '#/components/responses/SessionLimitReached'
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate or safely replay a refresh session
+      operationId: refresh
+      description: >
+        Web requires the protected refresh cookie, X-CSRF-Token, trusted
+        Origin/Referer and X-Refresh-Request-Id UUID. Mobile sends its
+        secure-store refresh credential over TLS. A same-ID retry may replay
+        for 30 seconds; a distinct reuse revokes the family.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/RefreshRequestId'
+      responses:
+        '200':
+          description: Rotated or idempotently replayed access-session result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionEnvelope'
+        '401':
+          $ref: '#/components/responses/RefreshInvalid'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current refresh session
+      operationId: logout
+      security: []
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptySuccess'
+        '401':
+          $ref: '#/components/responses/RefreshInvalid'
+  /auth/sessions:
+    get:
+      tags: [Auth]
+      summary: List only the caller's active privacy-safe sessions
+      operationId: listSessions
+      responses:
+        '200':
+          description: Active session projections; no IP, token or other-account data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+    delete:
+      tags: [Auth]
+      summary: Revoke every session of the caller, including current
+      operationId: revokeAllSessions
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptySuccess'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+  /auth/sessions/{sessionId}:
+    delete:
+      tags: [Auth]
+      summary: Revoke one owned session
+      operationId: revokeSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - name: confirmCurrentSession
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Required true when sessionId identifies the caller's current session.
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptySuccess'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+  /auth/password-resets:
+    post:
+      tags: [Auth]
+      summary: Request a neutral password-reset flow
+      operationId: requestPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+      responses:
+        '202':
+          description: Neutral accepted result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NeutralAcceptedEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /auth/password-resets/confirm:
+    post:
+      tags: [Auth]
+      summary: Replace a password and revoke all existing sessions
+      operationId: confirmPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/EmptySuccess'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /users/{userId}/roles:
+    get:
+      tags: [AdminAccountRoles]
+      summary: Read an exact-ID minimal role/access projection
+      operationId: getAccountRoleProjection
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Role and access state only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountManagementProjectionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [AdminAccountRoles]
+      summary: Grant ADMIN to another eligible exact-ID account
+      operationId: grantAdminRole
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantRoleRequest'
+      responses:
+        '200':
+          description: Latest minimal target projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountManagementProjectionEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+  /users/{userId}/roles/ADMIN:
+    delete:
+      tags: [AdminAccountRoles]
+      summary: Revoke ADMIN from another eligible exact-ID account
+      operationId: revokeAdminRole
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Latest minimal target projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountManagementProjectionEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+  /users/{userId}/lock:
+    post:
+      tags: [AdminAccountRoles]
+      summary: Lock another eligible account and revoke its active access
+      operationId: lockAccount
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountAccessCommandRequest'
+      responses:
+        '200':
+          description: Latest minimal target projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountManagementProjectionEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+  /users/{userId}/unlock:
+    post:
+      tags: [AdminAccountRoles]
+      summary: Unlock another eligible account; old sessions remain revoked
+      operationId: unlockAccount
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountAccessCommandRequest'
+      responses:
+        '200':
+          description: Latest minimal target projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountManagementProjectionEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/StateConflict'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RefreshRequestId:
+      name: X-Refresh-Request-Id
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    EmptySuccess:
+      description: Command accepted and completed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/EmptySuccessEnvelope' }
+    ValidationError:
+      description: Safe input validation error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RefreshInvalid:
+      description: Generic invalid, expired, revoked or reused refresh credential
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    AuthorizationDenied:
+      description: Caller lacks required server-side authorization
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Resource absent, unowned or unmanageable; no disclosure distinction
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    StateConflict:
+      description: Current state rejects the requested transition
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    SessionLimitReached:
+      description: Server session ceiling reached; no existing device was silently revoked
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    RateLimited:
+      description: Request rate limit reached
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+        password: { type: string, format: password, writeOnly: true }
+    EmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+    VerificationTokenRequest:
+      type: object
+      required: [verificationToken]
+      properties:
+        verificationToken: { type: string, minLength: 1, writeOnly: true }
+    LoginRequest:
+      type: object
+      required: [email, password, deviceId, deviceLabel, platform]
+      properties:
+        email: { type: string, format: email, maxLength: 320 }
+        password: { type: string, format: password, writeOnly: true }
+        deviceId: { type: string, minLength: 1, maxLength: 128 }
+        deviceLabel: { type: string, minLength: 1, maxLength: 120 }
+        platform: { type: string, enum: [WEB, IOS, ANDROID] }
+    PasswordResetConfirmRequest:
+      type: object
+      required: [resetToken, newPassword]
+      properties:
+        resetToken: { type: string, minLength: 1, writeOnly: true }
+        newPassword: { type: string, format: password, writeOnly: true }
+    GrantRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role: { type: string, const: ADMIN }
+    AccountAccessCommandRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, enum: [SECURITY, POLICY, USER_REQUEST, OTHER] }
+        note: { type: string, minLength: 1, maxLength: 280 }
+      allOf:
+        - if:
+            properties: { reason: { const: OTHER } }
+          then:
+            required: [note]
+    AuthSession:
+      type: object
+      required: [accessToken, expiresAt, sessionId]
+      properties:
+        accessToken: { type: string, readOnly: true }
+        expiresAt: { type: string, format: date-time }
+        sessionId: { type: string, format: uuid }
+    SessionProjection:
+      type: object
+      required: [sessionId, deviceLabel, platform, createdAt, lastSeenAt, currentSession]
+      properties:
+        sessionId: { type: string, format: uuid }
+        deviceLabel: { type: string }
+        platform: { type: string, enum: [WEB, IOS, ANDROID] }
+        createdAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        currentSession: { type: boolean }
+    AccountManagementProjection:
+      type: object
+      required: [userId, roles, accessState]
+      properties:
+        userId: { type: string, format: uuid }
+        roles:
+          type: array
+          items: { type: string, enum: [ADMIN] }
+        accessState: { type: string, enum: [ACTIVE, LOCKED] }
+    VerifiedAccount:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, const: ACTIVE }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties:
+        correlationId: { type: string, format: uuid }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, UNAUTHENTICATED, ACCESS_TOKEN_EXPIRED, REFRESH_TOKEN_INVALID, AUTHORIZATION_DENIED, RESOURCE_NOT_FOUND, STATE_CONFLICT, SESSION_LIMIT_REACHED, RATE_LIMITED]
+        message: { type: string }
+    NeutralAcceptedEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: object
+          required: [accepted]
+          properties: { accepted: { const: true } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AuthSessionEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/AuthSession' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    SessionListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/SessionProjection' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AccountManagementProjectionEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/AccountManagementProjection' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    VerifiedAccountEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/VerifiedAccount' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    EmptySuccessEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: object }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []

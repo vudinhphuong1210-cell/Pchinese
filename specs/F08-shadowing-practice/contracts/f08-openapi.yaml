@@ -1,0 +1,285 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F08 Shadowing Practice API
+  version: 1.0.0-design
+  description: >
+    Design contract for authenticated shadowing recording and assessment. Public
+    paths are served below /api/v1 and use the standard success/data/error/meta
+    envelope. Spring Boot owns access, recording lifecycle, F03 allowance,
+    idempotency and persistence. The private ai-service operation is not callable
+    by a browser.
+servers:
+  - url: /api/v1
+tags:
+  - name: ShadowingRecordings
+  - name: ShadowingAttempts
+  - name: PrivateShadowingAssessment
+paths:
+  /recordings:
+    post:
+      tags: [ShadowingRecordings]
+      summary: Upload a recording for a permitted unlocked or completed segment
+      operationId: uploadShadowingRecording
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, segmentId]
+              properties:
+                file: { type: string, format: binary }
+                segmentId: { type: string, format: uuid }
+              additionalProperties: false
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecordingEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /shadowing-attempts:
+    post:
+      tags: [ShadowingAttempts]
+      summary: Start an idempotent assessment for an available owned recording
+      operationId: createShadowingAttempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAttemptRequest' }
+      responses:
+        '202':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttemptEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '502': { $ref: '#/components/responses/ProviderUnavailable' }
+        '503': { $ref: '#/components/responses/ProviderUnavailable' }
+    get:
+      tags: [ShadowingAttempts]
+      summary: List caller-owned shadowing attempts
+      operationId: listShadowingAttempts
+      parameters:
+        - name: lessonId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: segmentId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttemptListEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /shadowing-attempts/{attemptId}:
+    get:
+      tags: [ShadowingAttempts]
+      summary: Read a caller-owned safe shadowing assessment
+      operationId: getShadowingAttempt
+      parameters: [ { $ref: '#/components/parameters/AttemptId' } ]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttemptEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /internal/v1/shadowing/assess:
+    post:
+      tags: [PrivateShadowingAssessment]
+      summary: Private Spring Boot to ai-service validated speech assessment
+      operationId: assessShadowingInternal
+      description: >
+        Private-network-only operation. The browser never calls it. Spring Boot
+        authenticates with replay-protected mTLS or HMAC and streams validated audio
+        with minimal learning context; no JWT, object key, signed URL or entitlement
+        data is sent.
+      servers:
+        - url: /
+      security:
+        - internalServiceAuth: []
+      x-internal: true
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/PrivateAssessmentRequest' }
+            encoding:
+              metadata:
+                contentType: application/json
+              audio:
+                contentType: application/octet-stream
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PrivateAssessmentResponse' }
+        '400': { $ref: '#/components/responses/InternalValidationError' }
+        '503': { $ref: '#/components/responses/InternalProviderUnavailable' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+    internalServiceAuth:
+      type: apiKey
+      in: header
+      name: X-Internal-Signature
+      description: HMAC or mTLS-authenticated service call with timestamp and nonce replay protection.
+  parameters:
+    AttemptId: { name: attemptId, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+  responses:
+    ValidationError:
+      description: Invalid audio, request, segment context or state
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Resource absent, unowned or unavailable; no disclosure distinction
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    StateConflict:
+      description: Idempotency key has changed request data or attempt cannot transition
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    RateLimited:
+      description: F03 allowance unavailable or server throttle reached
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    ProviderUnavailable:
+      description: Safe private provider or ai-service failure; no provider detail is exposed
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    InternalValidationError:
+      description: Private input or output schema was invalid
+      content: { application/json: { schema: { $ref: '#/components/schemas/InternalError' } } }
+    InternalProviderUnavailable:
+      description: Speech provider unavailable or timed out
+      content: { application/json: { schema: { $ref: '#/components/schemas/InternalError' } } }
+  schemas:
+    CreateAttemptRequest:
+      type: object
+      required: [segmentId, recordingId, clientRequestId]
+      properties:
+        segmentId: { type: string, format: uuid }
+        recordingId: { type: string, format: uuid }
+        clientRequestId: { type: string, format: uuid }
+      additionalProperties: false
+    RecordingProjection:
+      type: object
+      required: [id, segmentId, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        segmentId: { type: string, format: uuid }
+        status: { type: string, enum: [UPLOADING, SCANNING, AVAILABLE, QUARANTINED, DELETED] }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
+    ScoreDimensions:
+      type: object
+      required: [pronunciation, rhythm, fluency]
+      properties:
+        pronunciation: { type: number, minimum: 0, maximum: 100 }
+        rhythm: { type: number, minimum: 0, maximum: 100 }
+        fluency: { type: number, minimum: 0, maximum: 100 }
+    ShadowingAttempt:
+      type: object
+      required: [id, lessonId, segmentId, recordingId, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        segmentId: { type: string, format: uuid }
+        recordingId: { type: string, format: uuid }
+        status: { type: string, enum: [PROCESSING, COMPLETED, FAILED, EXPIRED] }
+        overallScore: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        dimensions: { anyOf: [ { $ref: '#/components/schemas/ScoreDimensions' }, { type: 'null' } ] }
+        feedback: { type: [string, 'null'], maxLength: 1000 }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+    PrivateAssessmentRequest:
+      type: object
+      required: [metadata, audio]
+      properties:
+        metadata: { $ref: '#/components/schemas/PrivateAssessmentMetadata' }
+        audio: { type: string, format: binary, writeOnly: true }
+      additionalProperties: false
+    PrivateAssessmentMetadata:
+      type: object
+      required: [correlationId, requestId, segmentReferenceText]
+      properties:
+        correlationId: { type: string, format: uuid }
+        requestId: { type: string, format: uuid }
+        segmentReferenceText: { type: string, maxLength: 5000 }
+        languageCode: { type: string, const: zh-CN }
+      additionalProperties: false
+    PrivateAssessmentResponse:
+      type: object
+      required: [providerRequestId, overallScore, dimensions, feedback]
+      properties:
+        providerRequestId: { type: string, maxLength: 128 }
+        overallScore: { type: number, minimum: 0, maximum: 100 }
+        dimensions: { $ref: '#/components/schemas/ScoreDimensions' }
+        feedback: { type: string, minLength: 1, maxLength: 1000 }
+    PageMeta:
+      type: object
+      required: [correlationId, page, size]
+      properties:
+        correlationId: { type: string, format: uuid }
+        page: { type: integer }
+        size: { type: integer }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties: { correlationId: { type: string, format: uuid } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT, AI_QUOTA_EXCEEDED, RATE_LIMITED, PROVIDER_UNAVAILABLE] }
+        message: { type: string }
+    InternalError:
+      type: object
+      required: [code]
+      properties: { code: { type: string, enum: [INVALID_INTERNAL_REQUEST, INVALID_PROVIDER_RESULT, PROVIDER_UNAVAILABLE] } }
+    RecordingEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/RecordingProjection' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AttemptEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/ShadowingAttempt' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AttemptListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/ShadowingAttempt' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []

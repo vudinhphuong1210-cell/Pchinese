@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F10 Spaced Repetition Review API
+  version: 1.0.0-design
+  description: >
+    Design contract for deterministic server-authoritative vocabulary review.
+    All paths are authenticated and served below /api/v1. Spring Boot is the
+    only clock and scheduler; the client submits a rating and displays the
+    persisted next schedule. F10 does not call ai-service or consume F03 allowance.
+servers:
+  - url: /api/v1
+tags:
+  - name: SpacedRepetition
+paths:
+  /reviews/due:
+    get:
+      tags: [SpacedRepetition]
+      summary: Get the next caller-owned due review batch
+      operationId: listDueReviews
+      responses:
+        '200':
+          description: At most 20 schedules due at server now, ordered by oldest dueAt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DueReviewListEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /reviews/{srsScheduleId}/submit:
+    post:
+      tags: [SpacedRepetition]
+      summary: Submit an idempotent rating using optimistic schedule versioning
+      operationId: submitReview
+      parameters: [ { $ref: '#/components/parameters/SrsScheduleId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReviewSubmissionRequest' }
+      responses:
+        '200':
+          description: Latest persisted schedule, or original persisted result for identical retry.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    SrsScheduleId: { name: srsScheduleId, in: path, required: true, schema: { type: string, format: uuid } }
+  responses:
+    ValidationError:
+      description: Invalid rating, UUID or expected version
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Schedule is absent or not owned; no disclosure distinction
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    StateConflict:
+      description: Stale schedule version or a changed idempotency request; latest safe state may be returned
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    ReviewSubmissionRequest:
+      type: object
+      required: [rating, clientReviewId, expectedScheduleVersion]
+      properties:
+        rating: { type: string, enum: [AGAIN, HARD, GOOD, EASY] }
+        clientReviewId: { type: string, format: uuid }
+        expectedScheduleVersion: { type: integer, minimum: 0 }
+      additionalProperties: false
+    ReviewCard:
+      type: object
+      required: [scheduleId, savedWordId, dueAt, state]
+      properties:
+        scheduleId: { type: string, format: uuid }
+        savedWordId: { type: string, format: uuid }
+        dueAt: { type: string, format: date-time }
+        state: { type: string, enum: [LEARNING, REVIEW, RELEARNING] }
+        vocabulary: { type: object }
+    SrsSchedule:
+      type: object
+      required: [scheduleId, state, dueAt, intervalMinutes, easeFactor, version]
+      properties:
+        scheduleId: { type: string, format: uuid }
+        state: { type: string, enum: [LEARNING, REVIEW, RELEARNING, SUSPENDED] }
+        dueAt: { type: string, format: date-time }
+        intervalMinutes: { type: integer, minimum: 1 }
+        easeFactor: { type: number, minimum: 1.3, maximum: 2.5 }
+        repetitions: { type: integer, minimum: 0 }
+        lapses: { type: integer, minimum: 0 }
+        version: { type: integer, minimum: 0 }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties: { correlationId: { type: string, format: uuid } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT, IDEMPOTENCY_CONFLICT] }
+        message: { type: string }
+    DueReviewListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/ReviewCard' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ScheduleEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SrsSchedule' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []
+

@@ -1,0 +1,178 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F07 Dictation Practice API
+  version: 1.0.0-design
+  description: >
+    Design contract for deterministic in-player Dictation. All paths are
+    authenticated and served below /api/v1. Spring Boot checks F06 access and
+    calculates a binary result: exact normalized match is 100, any mismatch is 0.
+    No ai-service call or AI allowance event is created.
+servers:
+  - url: /api/v1
+tags:
+  - name: Dictation
+paths:
+  /dictation-attempts:
+    post:
+      tags: [Dictation]
+      summary: Start or safely reuse an in-progress Dictation attempt
+      operationId: startDictationAttempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/StartAttemptRequest' }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttemptEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+    get:
+      tags: [Dictation]
+      summary: List the caller's Dictation history
+      operationId: listDictationAttempts
+      parameters:
+        - name: lessonId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: segmentId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttemptListEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /dictation-attempts/{attemptId}:
+    get:
+      tags: [Dictation]
+      summary: Read one permitted owned Dictation result
+      operationId: getDictationAttempt
+      parameters: [ { $ref: '#/components/parameters/AttemptId' } ]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttemptEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /dictation-attempts/{attemptId}/submit:
+    post:
+      tags: [Dictation]
+      summary: Submit a simplified-Hanzi answer for idempotent deterministic evaluation
+      operationId: submitDictationAttempt
+      parameters: [ { $ref: '#/components/parameters/AttemptId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubmitAttemptRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AttemptEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    AttemptId: { name: attemptId, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+  responses:
+    ValidationError:
+      description: Invalid answer, identifier or request payload
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Attempt is absent or not owned, or segment is not permitted
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    StateConflict:
+      description: Duplicate key with changed request or an invalid attempt transition
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    StartAttemptRequest:
+      type: object
+      required: [segmentId]
+      properties: { segmentId: { type: string, format: uuid } }
+      additionalProperties: false
+    SubmitAttemptRequest:
+      type: object
+      required: [answer, clientSubmissionId]
+      properties:
+        answer: { type: string, minLength: 1, maxLength: 2000 }
+        clientSubmissionId: { type: string, format: uuid }
+      additionalProperties: false
+    DictationAttempt:
+      type: object
+      required: [id, lessonId, segmentId, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        lessonId: { type: string, format: uuid }
+        segmentId: { type: string, format: uuid }
+        status: { type: string, enum: [IN_PROGRESS, EVALUATED, FAILED] }
+        overallScore: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        accuracyPercent: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        generalGuidance: { type: [string, 'null'], maxLength: 500 }
+        createdAt: { type: string, format: date-time }
+        evaluatedAt: { type: [string, 'null'], format: date-time }
+    PageMeta:
+      type: object
+      required: [correlationId, page, size]
+      properties:
+        correlationId: { type: string, format: uuid }
+        page: { type: integer }
+        size: { type: integer }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties: { correlationId: { type: string, format: uuid } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT] }
+        message: { type: string }
+    AttemptEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/DictationAttempt' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AttemptListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/DictationAttempt' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []
+

@@ -1,0 +1,80 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F03 Plans, Entitlement and AI Allowance API
+  version: 1.0.0-design
+  description: >
+    Design contract for the F03 learner-visible allowance fragment. The canonical
+    GET /me route and envelope are owned by F02; F03 contributes the safe
+    entitlement fragment to that projection. Reservation, success and refund are
+    internal Spring Boot domain operations, never browser endpoints.
+servers:
+  - url: /api/v1
+tags:
+  - name: Entitlement
+paths:
+  /me:
+    get:
+      tags: [Entitlement]
+      summary: Read the canonical current-user projection containing F03's safe entitlement fragment
+      operationId: getCurrentUserWithEntitlement
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '../../F02-profile-session-control/contracts/f02-openapi.yaml#/components/schemas/CurrentUserEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    EntitlementSummary:
+      type: object
+      required: [planCode, allowanceLimit, usedUnits, remainingUnits, cycleStartAt, cycleEndAt]
+      properties:
+        planCode: { type: string, const: FREE }
+        allowanceLimit: { type: integer, const: 30 }
+        usedUnits: { type: integer, minimum: 0, maximum: 30 }
+        remainingUnits: { type: integer, minimum: 0, maximum: 30 }
+        cycleStartAt: { type: string, format: date-time }
+        cycleEndAt: { type: string, format: date-time }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties:
+        correlationId: { type: string, format: uuid }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [UNAUTHENTICATED] }
+        message: { type: string }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []
+x-internal-domain-contract:
+  reserveOrReuse:
+    input: [authenticatedUser, featureType, ownedOperationId, clientRequestId]
+    result: RESERVED or existing event; quota/conflict error otherwise
+  succeed:
+    input: [eventId, validatedOutcome]
+    result: one SUCCEEDED usage event
+  refundOnce:
+    input: [eventId, safeFailureCategory]
+    result: one FAILED_REFUNDED usage event
+  callers: [F08-shadowing-practice, F11-ai-learning-buddy]

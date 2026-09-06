@@ -1,0 +1,191 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F05 Course Catalog and Access API
+  version: 1.0.0-design
+  description: >
+    Design contract for public discovery of published Free topics and lessons.
+    All paths are served below /api/v1 and use the standard success/data/error/meta
+    envelope. Catalog responses never include transcript, playable-media URL,
+    learner progress or practice data.
+servers:
+  - url: /api/v1
+tags:
+  - name: Catalog
+paths:
+  /topics:
+    get:
+      tags: [Catalog]
+      summary: Search published Free topic summaries
+      operationId: listTopics
+      security: []
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 120 }
+        - name: hskLevel
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 9 }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TopicListEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /topics/{topicId}:
+    get:
+      tags: [Catalog]
+      summary: Read one published Free topic and permitted lesson summaries
+      operationId: getTopic
+      security: []
+      parameters: [ { $ref: '#/components/parameters/TopicId' } ]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TopicEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /lessons:
+    get:
+      tags: [Catalog]
+      summary: Search published Free lesson cards in server-defined sort order
+      operationId: listLessons
+      security: []
+      parameters:
+        - name: topicId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: query
+          in: query
+          required: false
+          schema: { type: string, minLength: 1, maxLength: 120 }
+        - name: hskLevel
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 9 }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonListEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /lessons/{lessonId}:
+    get:
+      tags: [Catalog]
+      summary: Read a safe published Free lesson summary
+      operationId: getLesson
+      security: []
+      parameters: [ { $ref: '#/components/parameters/LessonId' } ]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LessonEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  parameters:
+    TopicId: { name: topicId, in: path, required: true, schema: { type: string, format: uuid } }
+    LessonId: { name: lessonId, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+  responses:
+    ValidationError:
+      description: Safe query validation error
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Content is absent, withdrawn or not publishable; no draft disclosure
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    TopicSummary:
+      type: object
+      required: [id, title, slug, hskLevel]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        hskLevel: { type: integer }
+    LessonSummary:
+      type: object
+      required: [id, topicId, title, slug, hskLevel, accessLevel]
+      properties:
+        id: { type: string, format: uuid }
+        topicId: { type: string, format: uuid }
+        title: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        hskLevel: { type: integer }
+        accessLevel: { type: string, const: FREE }
+    TopicDetail:
+      allOf:
+        - $ref: '#/components/schemas/TopicSummary'
+        - type: object
+          required: [lessons]
+          properties:
+            lessons:
+              type: array
+              items: { $ref: '#/components/schemas/LessonSummary' }
+    PageMeta:
+      type: object
+      required: [correlationId, page, size]
+      properties:
+        correlationId: { type: string, format: uuid }
+        page: { type: integer }
+        size: { type: integer }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties: { correlationId: { type: string, format: uuid } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, RESOURCE_NOT_FOUND] }
+        message: { type: string }
+    TopicListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/TopicSummary' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    LessonListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/LessonSummary' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    TopicEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/TopicDetail' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    LessonEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/LessonSummary' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security: []

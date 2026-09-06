@@ -1,0 +1,159 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F06 Lesson Learning and Progress API
+  version: 1.0.0-design
+  description: >
+    Design contract for authenticated lesson playback and sequential progress.
+    All paths are served below /api/v1. Spring Boot is the only authority for
+    content access, playback capability, watermark, completion and unlocking.
+servers:
+  - url: /api/v1
+tags:
+  - name: LessonPlayback
+  - name: LessonProgress
+paths:
+  /lessons/{lessonId}/playback:
+    get:
+      tags: [LessonPlayback]
+      summary: Get permitted lesson metadata and a short-lived playback capability
+      operationId: getLessonPlayback
+      parameters: [ { $ref: '#/components/parameters/LessonId' } ]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlaybackEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /lesson-progress:
+    get:
+      tags: [LessonProgress]
+      summary: Read the caller's aggregate progress or a not-started projection
+      operationId: getLessonProgress
+      parameters:
+        - name: lessonId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProgressEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /lesson-progress/{lessonId}/playback-events:
+    post:
+      tags: [LessonProgress]
+      summary: Submit a server-validated progress or end playback event
+      operationId: submitPlaybackEvent
+      parameters: [ { $ref: '#/components/parameters/LessonId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PlaybackEventRequest' }
+      responses:
+        '200':
+          description: Latest authoritative progress; a duplicate returns the same latest state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProgressEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    LessonId: { name: lessonId, in: path, required: true, schema: { type: string, format: uuid } }
+  responses:
+    ValidationError:
+      description: Invalid event, capability, position or request identifier
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Lesson is absent, unavailable or not permitted; no content disclosure
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    StateConflict:
+      description: Event is stale or its sequential playback state is not valid
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    PlaybackEventRequest:
+      type: object
+      required: [segmentId, event, positionMs, clientEventId, playbackCapability]
+      properties:
+        segmentId: { type: string, format: uuid }
+        event: { type: string, enum: [PROGRESS, ENDED] }
+        positionMs: { type: integer, minimum: 0 }
+        clientEventId: { type: string, format: uuid }
+        playbackCapability: { type: string, minLength: 1, writeOnly: true }
+      additionalProperties: false
+    SegmentPlayback:
+      type: object
+      required: [segmentId, sequenceNo, state]
+      properties:
+        segmentId: { type: string, format: uuid }
+        sequenceNo: { type: integer, minimum: 1 }
+        state: { type: string, enum: [CURRENT, COMPLETED, LOCKED] }
+        playbackMetadata: { type: object }
+    PlaybackProjection:
+      type: object
+      required: [lessonId, playbackCapability, capabilityExpiresAt, segments, progress]
+      properties:
+        lessonId: { type: string, format: uuid }
+        playbackCapability: { type: string, readOnly: true }
+        capabilityExpiresAt: { type: string, format: date-time }
+        segments:
+          type: array
+          items: { $ref: '#/components/schemas/SegmentPlayback' }
+        progress: { $ref: '#/components/schemas/ProgressProjection' }
+    ProgressProjection:
+      type: object
+      required: [lessonId, status, currentSegmentId, completedSegmentCount, playbackWatermarkMs]
+      properties:
+        lessonId: { type: string, format: uuid }
+        status: { type: string, enum: [NOT_STARTED, IN_PROGRESS, COMPLETED] }
+        currentSegmentId: { type: [string, 'null'], format: uuid }
+        completedSegmentCount: { type: integer, minimum: 0 }
+        playbackWatermarkMs: { type: integer, minimum: 0 }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties: { correlationId: { type: string, format: uuid } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT] }
+        message: { type: string }
+    PlaybackEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/PlaybackProjection' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ProgressEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/ProgressProjection' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []

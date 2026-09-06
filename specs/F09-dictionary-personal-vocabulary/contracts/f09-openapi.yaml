@@ -1,0 +1,269 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F09 Dictionary and Personal Vocabulary API
+  version: 1.0.0-design
+  description: >
+    Design contract for PUBLISHED dictionary discovery and caller-owned personal
+    vocabulary. Public dictionary paths never expose withdrawn content or
+    unavailable assets. Saved-word lifecycle invokes F10 internally and does not
+    call ai-service or consume F03 allowance.
+servers:
+  - url: /api/v1
+tags:
+  - name: Dictionary
+  - name: PersonalVocabulary
+paths:
+  /dictionary:
+    get:
+      tags: [Dictionary]
+      summary: Search published dictionary entries
+      operationId: searchDictionary
+      security: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 120 }
+        - name: hskLevel
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 9 }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DictionaryListEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /dictionary/{entryId}:
+    get:
+      tags: [Dictionary]
+      summary: Read one published dictionary entry
+      operationId: getDictionaryEntry
+      security: []
+      parameters: [ { $ref: '#/components/parameters/EntryId' } ]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DictionaryEntryEnvelope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /saved-words:
+    post:
+      tags: [PersonalVocabulary]
+      summary: Create or restore one caller-owned saved word and F10 schedule
+      operationId: saveWord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveWordRequest' }
+      responses:
+        '200':
+          description: Existing active or restored relation.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedWordEnvelope' }
+        '201':
+          description: New saved-word relation and initial F10 schedule.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedWordEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      tags: [PersonalVocabulary]
+      summary: List caller-owned vocabulary with optional due filtering
+      operationId: listSavedWords
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [ACTIVE, DELETED] }
+        - name: dueOnly
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedWordListEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /saved-words/{savedWordId}:
+    patch:
+      tags: [PersonalVocabulary]
+      summary: Update a private personal note or supported lifecycle state
+      operationId: updateSavedWord
+      parameters: [ { $ref: '#/components/parameters/SavedWordId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateSavedWordRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SavedWordEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+    delete:
+      tags: [PersonalVocabulary]
+      summary: Remove a saved word from active vocabulary and suspend its F10 schedule
+      operationId: deleteSavedWord
+      parameters: [ { $ref: '#/components/parameters/SavedWordId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/EmptySuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    EntryId: { name: entryId, in: path, required: true, schema: { type: string, format: uuid } }
+    SavedWordId: { name: savedWordId, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+  responses:
+    EmptySuccess:
+      description: Command accepted and completed
+      content: { application/json: { schema: { $ref: '#/components/schemas/EmptySuccessEnvelope' } } }
+    ValidationError:
+      description: Invalid search filter, identifier, note or state request
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid access credential
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Entry is absent/unpublished or saved word is absent/unowned
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    StateConflict:
+      description: Concurrent saved-word lifecycle transition
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    DictionarySummary:
+      type: object
+      required: [id, simplified, pinyin, hskLevel]
+      properties:
+        id: { type: string, format: uuid }
+        simplified: { type: string }
+        traditional: { type: [string, 'null'] }
+        pinyin: { type: string }
+        vietnameseGloss: { type: string }
+        hskLevel: { type: integer }
+    DictionaryEntry:
+      allOf:
+        - $ref: '#/components/schemas/DictionarySummary'
+        - type: object
+          required: [senses, examples]
+          properties:
+            senses: { type: array, items: { type: string } }
+            examples: { type: array, items: { type: string } }
+            audio: { type: [object, 'null'] }
+            image: { type: [object, 'null'] }
+    SaveWordRequest:
+      type: object
+      required: [dictionaryEntryId]
+      properties:
+        dictionaryEntryId: { type: string, format: uuid }
+        personalNote: { type: string, maxLength: 500 }
+      additionalProperties: false
+    UpdateSavedWordRequest:
+      type: object
+      minProperties: 1
+      properties:
+        personalNote: { type: string, maxLength: 500 }
+        status: { type: string, enum: [ACTIVE] }
+      additionalProperties: false
+    ReviewSummary:
+      type: object
+      required: [dueAt, state]
+      properties:
+        dueAt: { type: string, format: date-time }
+        state: { type: string, enum: [LEARNING, REVIEW, RELEARNING, SUSPENDED] }
+    SavedWord:
+      type: object
+      required: [id, dictionaryEntryId, status, review]
+      properties:
+        id: { type: string, format: uuid }
+        dictionaryEntryId: { type: string, format: uuid }
+        personalNote: { type: [string, 'null'], maxLength: 500 }
+        status: { type: string, enum: [ACTIVE, DELETED] }
+        review: { $ref: '#/components/schemas/ReviewSummary' }
+        unavailable: { type: boolean, default: false }
+    PageMeta:
+      type: object
+      required: [correlationId, page, size]
+      properties:
+        correlationId: { type: string, format: uuid }
+        page: { type: integer }
+        size: { type: integer }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties: { correlationId: { type: string, format: uuid } }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT] }
+        message: { type: string }
+    DictionaryListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/DictionarySummary' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    DictionaryEntryEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/DictionaryEntry' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    SavedWordEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/SavedWord' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    SavedWordListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/SavedWord' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/PageMeta' }
+    EmptySuccessEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: object }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []
+
