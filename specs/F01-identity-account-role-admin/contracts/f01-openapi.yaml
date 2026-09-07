@@ -111,8 +111,6 @@ paths:
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/AuthorizationDenied'
-        '409':
-          $ref: '#/components/responses/SessionLimitReached'
   /auth/refresh:
     post:
       tags: [Auth]
@@ -146,52 +144,6 @@ paths:
           $ref: '#/components/responses/EmptySuccess'
         '401':
           $ref: '#/components/responses/RefreshInvalid'
-  /auth/sessions:
-    get:
-      tags: [Auth]
-      summary: List only the caller's active privacy-safe sessions
-      operationId: listSessions
-      responses:
-        '200':
-          description: Active session projections; no IP, token or other-account data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SessionListEnvelope'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-    delete:
-      tags: [Auth]
-      summary: Revoke every session of the caller, including current
-      operationId: revokeAllSessions
-      responses:
-        '200':
-          $ref: '#/components/responses/EmptySuccess'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-  /auth/sessions/{sessionId}:
-    delete:
-      tags: [Auth]
-      summary: Revoke one owned session
-      operationId: revokeSession
-      parameters:
-        - $ref: '#/components/parameters/SessionId'
-        - name: confirmCurrentSession
-          in: query
-          required: false
-          schema:
-            type: boolean
-            default: false
-          description: Required true when sessionId identifies the caller's current session.
-      responses:
-        '200':
-          $ref: '#/components/responses/EmptySuccess'
-        '401':
-          $ref: '#/components/responses/Unauthenticated'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/StateConflict'
   /auth/password-resets:
     post:
       tags: [Auth]
@@ -375,11 +327,6 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
-    SessionId:
-      name: sessionId
-      in: path
-      required: true
-      schema: { type: string, format: uuid }
     RefreshRequestId:
       name: X-Refresh-Request-Id
       in: header
@@ -418,11 +365,6 @@ components:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
     StateConflict:
       description: Current state rejects the requested transition
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
-    SessionLimitReached:
-      description: Server session ceiling reached; no existing device was silently revoked
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ErrorEnvelope' }
@@ -481,21 +423,10 @@ components:
             required: [note]
     AuthSession:
       type: object
-      required: [accessToken, expiresAt, sessionId]
+      required: [accessToken, expiresAt]
       properties:
         accessToken: { type: string, readOnly: true }
         expiresAt: { type: string, format: date-time }
-        sessionId: { type: string, format: uuid }
-    SessionProjection:
-      type: object
-      required: [sessionId, deviceLabel, platform, createdAt, lastSeenAt, currentSession]
-      properties:
-        sessionId: { type: string, format: uuid }
-        deviceLabel: { type: string }
-        platform: { type: string, enum: [WEB, IOS, ANDROID] }
-        createdAt: { type: string, format: date-time }
-        lastSeenAt: { type: string, format: date-time }
-        currentSession: { type: boolean }
     AccountManagementProjection:
       type: object
       required: [userId, roles, accessState]
@@ -521,7 +452,7 @@ components:
       properties:
         code:
           type: string
-          enum: [VALIDATION_ERROR, UNAUTHENTICATED, ACCESS_TOKEN_EXPIRED, REFRESH_TOKEN_INVALID, AUTHORIZATION_DENIED, RESOURCE_NOT_FOUND, STATE_CONFLICT, SESSION_LIMIT_REACHED, RATE_LIMITED]
+          enum: [VALIDATION_ERROR, UNAUTHENTICATED, ACCESS_TOKEN_EXPIRED, REFRESH_TOKEN_INVALID, AUTHORIZATION_DENIED, RESOURCE_NOT_FOUND, STATE_CONFLICT, RATE_LIMITED]
         message: { type: string }
     NeutralAcceptedEnvelope:
       type: object
@@ -540,16 +471,6 @@ components:
       properties:
         success: { const: true }
         data: { $ref: '#/components/schemas/AuthSession' }
-        error: { type: 'null' }
-        meta: { $ref: '#/components/schemas/Meta' }
-    SessionListEnvelope:
-      type: object
-      required: [success, data, error, meta]
-      properties:
-        success: { const: true }
-        data:
-          type: array
-          items: { $ref: '#/components/schemas/SessionProjection' }
         error: { type: 'null' }
         meta: { $ref: '#/components/schemas/Meta' }
     AccountManagementProjectionEnvelope:

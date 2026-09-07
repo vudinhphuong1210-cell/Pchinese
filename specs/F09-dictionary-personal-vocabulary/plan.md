@@ -11,7 +11,7 @@ Deliver a published dictionary search and entry-detail experience plus a private
 
 | Area | Decision |
 | --- | --- |
-| Public API | Spring Boot routes under /api/v1 with the standard envelope and typed React clients |
+| Public API | Spring Boot routes under /api/v1 with the standard envelope and contract-bound React clients |
 | Dictionary visibility | Search and detail expose PUBLISHED entries and only published/available media assets |
 | Search | Simplified and Traditional Chinese, tone/case/space-insensitive pinyin, and Vietnamese keyword search |
 | Personal data | Exactly one saved-word relation per user and dictionary entry; note is encrypted plain text and bounded to 500 characters |
@@ -61,4 +61,3 @@ Deliver a published dictionary search and entry-detail experience plus a private
 ## Complexity Tracking
 
 No constitution exceptions are required.
-

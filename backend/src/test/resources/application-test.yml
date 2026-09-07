@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: ${PCHINESE_TEST_DATABASE_URL:jdbc:postgresql://localhost:5432/pchinese_test}
+    username: ${PCHINESE_TEST_DATABASE_USERNAME:pchinese}
+    password: ${PCHINESE_TEST_DATABASE_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+pchinese:
+  mail:
+    enabled: false
+  security:
+    cookie-secure: false
+    allowed-origins: http://localhost:3000,http://localhost:5173

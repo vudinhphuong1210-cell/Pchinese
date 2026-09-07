@@ -64,20 +64,16 @@ Expected:
 - After lock, old access/refresh credentials lose access immediately; unlock requires a new sign-in.
 - No response/log displays the raw refresh token or detects reuse verbosely.
 
-### 3. Owned session lifecycle
+### 3. Current-session sign-out
 
-1. Create two learner sessions from distinct device IDs.
-2. List `GET /api/v1/auth/sessions` as that learner.
-3. Revoke the non-current session, then attempt to use it.
-4. Revoke the current session only after confirming `confirmCurrentSession=true`.
-5. Exercise logout-all from a fresh session.
+1. Sign in as a learner.
+2. Call `POST /api/v1/auth/logout` with the current refresh credential.
+3. Attempt to refresh or access a protected route with that credential.
 
 Expected:
 
-- List includes only caller-owned, privacy-safe device records and identifies currentSession.
-- Unowned/absent session IDs return safe 404 and never affect another learner.
-- Current-session revoke immediately clears SPA auth state and returns the learner to /login.
-- Logout-all revokes every caller session and no other account session.
+- The current authentication state is cleared and the learner returns to sign-in.
+- The revoked credential cannot be used for a later refresh or protected action.
 
 ### 4. Password recovery
 
@@ -116,7 +112,7 @@ Expected:
 - All auth and Admin forms have visible labels, field-associated errors and an error summary that
   receives focus after failed submit.
 - Async request status is announced without exposing sensitive account information.
-- Current-session, logout-all and lock/unlock dialogs trap/manage focus, allow Escape/cancel and
+- Lock/unlock dialogs trap/manage focus, allow Escape/cancel and
   return focus to their trigger.
 - Keyboard navigation, focus-visible state, WCAG AA contrast, semantic design tokens, reduced
   motion and 44×44px touch targets work at mobile and desktop breakpoints.
@@ -126,9 +122,16 @@ Expected:
 ## Required test evidence
 
 - Backend unit tests: credential/account lifecycle, ACTIVE/LOCKED guards, role status transitions,
-  OTHER-note validation, session ownership, role/history audit and final-Admin concurrency logic.
+  OTHER-note validation, current-session sign-out, role/history audit and final-Admin concurrency logic.
 - Backend integration tests: DTO validation, API envelopes, neutral anti-enumeration responses,
   JWT/session rejection, refresh replay/reuse, CSRF/origin checks and clean Flyway migration.
-- Frontend Jest: typed envelope/error mapping, refresh single-flight, redirect/clear behavior,
+- Frontend Jest: contract-envelope/error mapping, refresh single-flight, redirect/clear behavior,
   no-token-storage behavior, exact-ID Admin UI, safe conflict UX and confirmation flows.
 - E2E: the five scenarios above, using stable `data-testid` values and no CSS-coupled selectors.
+
+## Implementation validation — 2026-09-07
+
+- `API.md`, the F01 OpenAPI contract and the frontend API modules all use the same `/api/v1` routes; no contract correction was required.
+- `mvn clean verify` passes unit tests and compiles the PostgreSQL-backed controller/migration integration suite. The suite is configured to run automatically through Failsafe when Docker is available.
+- This workstation has no reachable Docker daemon, so Testcontainers correctly skipped its clean-PostgreSQL execution. Run `mvn verify` with Docker available before merging a Flyway migration.
+- Frontend lint, Jest and Vite production build pass.

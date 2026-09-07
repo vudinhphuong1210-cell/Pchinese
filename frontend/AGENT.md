@@ -15,13 +15,14 @@
 - React 18 + Vite.
 - Tailwind CSS 3.x; npm là package manager.
 - Jest cho kiểm thử frontend. Không thêm thư viện UI, state-management hay router mới nếu feature spec/chủ dự án chưa phê duyệt.
-- Frontend sở hữu route composition, UI state, accessibility, presentation formatting và typed API client.
+- Frontend sở hữu route composition, UI state, accessibility, presentation formatting và API client theo contract.
 - Backend là nguồn chuẩn cho authentication, authorization, ownership, entitlement, quota AI, state transition, scoring, SRS và dữ liệu tiến độ.
 
 ## 3. Quy tắc triển khai bắt buộc
 
-- Không dùng `any`, class component, client-side database access, raw provider call hay secret trong bundle.
-- Mọi gọi API đi qua typed client trong `src/api/`; không rải `fetch` tùy tiện trong component.
+- Không dùng class component, client-side database access, raw provider call hay secret trong bundle.
+- Component render JSX dùng `.jsx`; API client, store, hook, utility và E2E không render JSX dùng `.js`.
+- Mọi gọi API đi qua API client theo contract trong `src/api/`; không rải `fetch` tùy tiện trong component.
 - Tôn trọng response envelope `{ success, data, error, meta }`, error code ổn định và metadata phân trang từ backend.
 - Không tin hoặc tự gửi `isAdmin`, plan, score, quota hay quyền sở hữu như một nguồn quyền. Route guard và UI chỉ cải thiện trải nghiệm; backend luôn quyết định.
 - Access token chỉ ở memory. Không lưu access/refresh token vào `localStorage`, `sessionStorage`, IndexedDB hay JavaScript-readable cookie. Xử lý refresh theo session contract trong `../CLAUDE.md`.
@@ -41,8 +42,8 @@
 ## 5. Definition of Done cho frontend
 
 - [ ] Đã xác định actor, route, API contract, trạng thái tải/lỗi/rỗng và quy tắc access liên quan.
-- [ ] TypeScript, lint và format không lỗi; không có `any`, debug code hay TODO chưa xử lý.
-- [ ] Typed API client, component/hook và UI state được cập nhật đồng bộ.
+- [ ] JavaScript lint, build và format không lỗi; không có debug code hay TODO chưa xử lý.
+- [ ] API client theo contract, component/hook và UI state được cập nhật đồng bộ.
 - [ ] Có Jest test phù hợp cho hành vi component/utility; E2E dùng `data-testid` ổn định khi cần.
 - [ ] Không suy diễn hoặc thực thi quyền/quota/nghiệp vụ chỉ ở React.
 - [ ] Giao diện tuân thủ `DESIGN.md`, responsive và accessible.

@@ -82,8 +82,8 @@ Revocable authenticated device session.
 | revoked_at, revoked_reason | Null while active; revocation is terminal |
 | version | Lock/CAS support |
 
-Indexes: `(user_id, revoked_at)` and `family_id`. A learner can list only a privacy-safe
-projection of their own active sessions. A current-session revoke requires explicit confirmation.
+Indexes: `(user_id, revoked_at)` and `family_id`. These records support the server-managed
+authentication lifecycle and security invalidation; they are not exposed for self-service management.
 
 ### refresh_tokens
 
@@ -154,9 +154,9 @@ content and provider information.
 | --- | --- |
 | Register | Normalize/hash email; create one PENDING_VERIFICATION user and action token only when new; return neutral result regardless of duplicate/ineligible lookup. |
 | Verify email | Lock/validate unused unexpired verification token; consume once; transition owner to ACTIVE; audit safe outcome. |
-| Login | Authenticate ACTIVE verified user; apply configured session ceiling; create one session/family and hashed refresh token atomically. |
+| Login | Authenticate ACTIVE verified user; create one session/family and hashed refresh token atomically. |
 | Refresh | Lock refresh/session record; rotate once or replay same request ID ≤30s; distinct reuse revokes family and audits. |
-| Logout / revoke session(s) | Verify ownership/current confirmation; revoke only requested owned session/family or all caller sessions; never affect another account. |
+| Logout | Revoke only the current refresh-session family from the presented credential. |
 | Password reset confirm | Consume valid reset token; replace bcrypt hash, increment authz version, revoke every active session/family and audit atomically. |
 | Role grant/revoke | Lock target + active-role set; verify ADMIN actor, active target, no self/final-admin violation; write immutable role history, update authz version, revoke target sessions and audit. |
 | Lock/unlock | Lock target account; require valid reason and OTHER note; reject self/final-active-ADMIN removal; lock increments authz version/revokes sessions; unlock never restores sessions; audit outcome. |
@@ -166,6 +166,5 @@ content and provider information.
 | Projection | Fields allowed |
 | --- | --- |
 | Auth session response | Access-session metadata; raw refresh only through protected platform mechanism, never normal JSON persistence/logging |
-| Own session list | sessionId, sanitized deviceLabel, platform, createdAt, lastSeenAt, currentSession |
 | Admin account-management projection | Exact target ID, active ADMIN role state and locked/unlocked access state only |
 | Public error | Stable code, safe message, correlation ID; no account-existence, target-private or credential detail |

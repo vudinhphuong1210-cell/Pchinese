@@ -58,15 +58,15 @@ AI orchestration (approved AI features only): Mastra + Node.js + TypeScript as a
 
 ## 4. NAMING CONVENTIONS
 
-- React component files: PascalCase (e.g. `UserCard.tsx`)
-- Utility files and functions: camelCase (e.g. `formatDate.ts`)
+- React component files: PascalCase (e.g. `UserCard.jsx`)
+- Utility files and functions: camelCase (e.g. `formatDate.js`)
 - API route segments: kebab-case (e.g. `/api/v1/user-profile`)
 - Database tables: snake_case, plural (e.g. `user_profiles`)
 
 ## 5. FORBIDDEN PATTERNS
 
 - NEVER commit secrets, passwords, API keys, or `.env` files to Git.
-- NEVER use `any`; define proper TypeScript types instead.
+- In `ai-service`, NEVER use `any`; define proper TypeScript types instead.
 - NEVER skip input validation on API endpoints.
 - NEVER introduce deprecated libraries without team approval.
 - NEVER delete files in `/data` or `/uploads` without user confirmation.
@@ -74,6 +74,8 @@ AI orchestration (approved AI features only): Mastra + Node.js + TypeScript as a
 - NEVER enforce Premium access only in the frontend; validate entitlements on the backend.
 - NEVER infer administrative access from a client-provided flag, route visibility, or a Premium entitlement; enforce the server-managed `ADMIN` role in the service layer.
 - NEVER create Flyway migrations for non-schema, temporary, or experimental changes.
+- Before creating, modifying, or proposing a Flyway migration, inspect `DATA/_short.md` as the record of the Supabase schema.
+- If `DATA/_short.md` is missing, or the required schema object is not recorded there, report the gap and wait for explicit user approval before adding a migration.
 - NEVER create multiple Flyway migrations for the same unmerged schema change; consolidate them before merge.
 - NEVER modify or delete a Flyway migration that has been applied to a shared or production environment.
 - NEVER call an AI provider, Mastra or speech provider from React, or expose provider credentials/default Mastra endpoints to the public Internet.
@@ -84,7 +86,8 @@ AI orchestration (approved AI features only): Mastra + Node.js + TypeScript as a
 
 - [ ] Acceptance criteria in the relevant feature spec are met.
 - [ ] Backend unit tests (JUnit 5 + Mockito) and relevant frontend tests (Jest) are written and passing.
-- [ ] No linting, formatting, compilation, or TypeScript errors remain.
+- [ ] No frontend JavaScript lint, formatting, build, or test errors remain; no ai-service
+  TypeScript errors remain.
 - [ ] API changes follow `/api/v1` and `{ success, data, error, meta }`, and are documented in Swagger/OpenAPI.
 - [ ] Input validation, authentication, authorization (including `ADMIN` for privileged operations), and Premium entitlement checks are implemented where applicable.
 - [ ] Error cases return the correct HTTP status code and standard error response.

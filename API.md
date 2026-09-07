@@ -18,7 +18,7 @@ Khi thay đổi một API, người thực hiện phải cập nhật cùng pull
 
 1. dòng endpoint trong file này;
 2. OpenAPI/Swagger schema;
-3. DTO backend, typed API client frontend và test contract;
+3. DTO backend, API client frontend theo contract và test contract;
 4. frontend route nếu entry point thay đổi.
 
 Không được đổi URL chỉ ở frontend hoặc chỉ ở controller. Không tạo endpoint mà chưa thêm vào registry này.
@@ -49,8 +49,8 @@ Không hợp lệ:    GET /api/lessons
 
 ### 2.2 API client duy nhất
 
-- Chỉ `src/api/` (hoặc `src/lib/apiClient.ts` tương đương) đọc `VITE_API_BASE_URL`, gắn headers, parse standard envelope và xử lý refresh token single-flight.
-- Feature chỉ gọi typed methods như `api.auth.login()`, `api.lessons.getById()`; không viết `fetch('/api/...')`, `axios.get(...)` hoặc lặp string URL trong page/component.
+- Chỉ `src/api/` (hoặc `src/lib/apiClient.js` tương đương) đọc `VITE_API_BASE_URL`, gắn headers, parse standard envelope và xử lý refresh token single-flight.
+- Feature chỉ gọi API methods như `api.auth.login()`, `api.lessons.getById()`; không viết `fetch('/api/...')`, `axios.get(...)` hoặc lặp string URL trong page/component.
 - Khai báo tất cả path params bằng **ID UUID**. Frontend có thể dùng `slug` trong URL đẹp, nhưng phải load lesson/topic rồi gọi endpoint bằng `lessonId`/`topicId` trả về từ API.
 - Không gọi AI vendor hoặc Media Provider trực tiếp từ browser. Playback metadata đi qua backend endpoint; API key/provider prompt không được trả về frontend.
 
@@ -162,7 +162,7 @@ Ngoại lệ F10: `GET /reviews/due` luôn trả tối đa 20 schedule đến h�
 | `403` | `AUTHORIZATION_DENIED` | Không tiết lộ resource; hiện trang cấm truy cập. |
 | `403` | `ENTITLEMENT_REQUIRED` | Hiện unavailable/access state; MVP không hiển thị upgrade hoặc tự cấp Premium. |
 | `404` | `RESOURCE_NOT_FOUND` | Hiện not found; resource learner-owned không phân biệt absent/unowned. |
-| `409` | `DUPLICATE_RESOURCE`, `STATE_CONFLICT`, `IDEMPOTENCY_CONFLICT`, `SESSION_LIMIT_REACHED` | Hiện action phù hợp, sau đó reload state server. |
+| `409` | `DUPLICATE_RESOURCE`, `STATE_CONFLICT`, `IDEMPOTENCY_CONFLICT` | Hiện action phù hợp, sau đó reload state server. |
 | `413`/`415` | `PAYLOAD_TOO_LARGE`, `UNSUPPORTED_MEDIA_TYPE` | Báo file upload không hợp lệ trước khi retry. |
 | `429` | `RATE_LIMITED`, `AI_QUOTA_EXCEEDED` | Disable retry tức thì; hiển thị cooldown/quota. |
 | `502`/`503` | `PROVIDER_ERROR`, `SERVICE_UNAVAILABLE` | Giữ learner input/recording state để có thể retry an toàn. |
@@ -176,12 +176,9 @@ Các endpoint của phần này là `LOCKED` theo `CLAUDE.md`.
 | `auth.register` | `POST /auth/register` | `{ email, password }` | `202`, `{ accepted: true }` | Public; response trung lập, không tiết lộ account tồn tại; `400`, `429`. |
 | `auth.requestEmailVerification` | `POST /auth/email-verifications` | `{ email }` | `202` | Public; không tiết lộ account tồn tại; `400`, `429`. |
 | `auth.confirmEmailVerification` | `POST /auth/email-verifications/confirm` | `{ verificationToken }` | `200`, verified account state | Public; `400`, `409 STATE_CONFLICT`. |
-| `auth.login` | `POST /auth/login` | `{ email, password, deviceId, deviceLabel, platform }` | `200`, access-session result; web nhận refresh cookie | Verified user; `401`, `403`, `409 SESSION_LIMIT_REACHED`. |
+| `auth.login` | `POST /auth/login` | `{ email, password, deviceId, deviceLabel, platform }` | `200`, access-session result; web nhận refresh cookie | Verified user; `401`, `403`. |
 | `auth.refresh` | `POST /auth/refresh` | Web: cookie + CSRF + `X-Refresh-Request-Id`; Mobile: secure-store token + request ID | `200`, rotated session result | `401 REFRESH_TOKEN_INVALID`; client single-flight. |
 | `auth.logout` | `POST /auth/logout` | Web refresh cookie / mobile refresh credential | `200` | Current session; `401 REFRESH_TOKEN_INVALID`. |
-| `auth.listSessions` | `GET /auth/sessions` | — | `200`, pageless active device list with privacy-safe metadata and `currentSession` | Owner only; `401`. |
-| `auth.revokeSession` | `DELETE /auth/sessions/{sessionId}` | Path `sessionId`, `confirmCurrentSession` when target is current | `200` | Session owner only; current session must be explicitly confirmed then loses access immediately; `401`, `404`. |
-| `auth.revokeAllSessions` | `DELETE /auth/sessions` | — | `200` | Current user; includes current session. |
 | `auth.requestPasswordReset` | `POST /auth/password-resets` | `{ email }` | `202` | Public; không lộ account; `400`, `429`. |
 | `auth.confirmPasswordReset` | `POST /auth/password-resets/confirm` | `{ resetToken, newPassword }` | `200` | Public; `400`; thành công revoke mọi sessions. |
 
@@ -265,7 +262,7 @@ Spring Boot lock entitlement rồi reserve/reuse immutable AI usage event trư�
 
 ## 10. Private Spring Boot → ai-service contract — không phải public API
 
-Hai route sau không có prefix `/api/v1`, không có browser caller và không xuất hiện trong typed frontend client. Đây là private-network-only contract, versioned, typed và schema-validated; public error envelope chỉ do Spring Boot tạo.
+Hai route sau không có prefix `/api/v1`, không có browser caller và không xuất hiện trong frontend API client. Đây là private-network-only contract, versioned, typed và schema-validated; public error envelope chỉ do Spring Boot tạo.
 
 | Feature | Internal route | Caller / input tối thiểu | Output được phép | Không được làm |
 | --- | --- | --- | --- | --- |
@@ -331,12 +328,12 @@ Những route sau đã được nêu rõ trong `CLAUDE.md`, nhưng chỉ mở kh
 - [ ] Ownership, account lock, `ADMIN`, content availability, Free access, AI quota/rate limit, idempotency và version conflict có test success/forbidden/error.
 - [ ] Access/refresh token, cookie, CSRF và session revoke tuân JWT/session policy; không token nào vào browser storage/log.
 - [ ] F08/F11 private contract có test valid/invalid/unsafe/replay, malformed output, timeout và failure/refund; browser không thể gọi ai-service.
-- [ ] Swagger/OpenAPI, typed frontend client và file này cùng được cập nhật.
+- [ ] Swagger/OpenAPI, frontend API client theo contract và file này cùng được cập nhật.
 
-## 14. Quy ước đặt tên TypeScript (tham chiếu)
+## 14. Quy ước đặt tên JavaScript (tham chiếu)
 
-```ts
-// src/api/ hoặc src/lib/apiClient.ts là nơi duy nhất ghép VITE_API_BASE_URL + path.
+```js
+// src/api/ hoặc src/lib/apiClient.js là nơi duy nhất ghép VITE_API_BASE_URL + path.
 api.auth.login(request)
 api.lessons.getPlayback(lessonId)
 api.lessonProgress.sendPlaybackEvent(lessonId, request)

@@ -1,6 +1,6 @@
 # CONSTITUTION.md — Project Law
 
-# Ratified: 2026-09-03 | Amended: 2026-09-05 | Team: Pchinese | Version: 1.3
+# Ratified: 2026-09-03 | Amended: 2026-09-06 | Team: Pchinese | Version: 2.0
 
 # RULE: Any change to this document requires unanimous team approval.
 
@@ -11,7 +11,7 @@ Backend framework: Spring Boot 3.4.5
 Backend build tool: Maven  
 Database: PostgreSQL 18 — no NoSQL without unanimous team approval  
 Persistence: Spring Data JPA repositories only — no application-level raw SQL  
-Frontend: React 18 + TypeScript + Vite — no class components  
+Frontend: React 18 + JavaScript/JSX + Vite — no class components
 Styling: Tailwind CSS 3.x — add custom CSS only when Tailwind is insufficient  
 Frontend package tool: npm  
 Authentication: JWT + bcrypt (cost factor >= 12)
@@ -21,10 +21,11 @@ Architecture: a modular monolith consisting of a React SPA and a Spring Boot RES
 ## ARTICLE 2 — CODING STANDARDS
 
 Backend language: Java 21, following Spring Boot conventions and domain-module boundaries  
-Frontend language: TypeScript strict mode; `any` is forbidden  
+Frontend language: JavaScript. Files that render JSX use `.jsx`; all other frontend files use
+`.js`.
 Persistence: repositories encapsulate persistence access through Spring Data JPA; services own business rules; API payloads use explicit DTOs  
 Formatter: committed formatter configuration must be used  
-Linter: ESLint for frontend; no lint, formatting, compilation or TypeScript errors may remain  
+Linter: ESLint for frontend; no lint, formatting, build or test errors may remain
 Naming: React components use PascalCase; utility files/functions use camelCase; API route segments use kebab-case; PostgreSQL tables use plural snake_case  
 Comments: explain WHY, not WHAT. Remove debug code, dead code and unresolved TODO comments before merge.
 
@@ -72,7 +73,9 @@ No merge if relevant existing tests break.
 
 - Before changing a feature, read `AGENT.md`, `CLAUDE.md`, this Constitution and the relevant `specs/<feature>/spec.md` file.
 - Treat `AGENT.md` as the source of truth for the mandatory tech stack and operating rules; this Constitution is the binding team law; `CLAUDE.md` defines the system architecture, domain flows and conventions.
-- Implement backend DTOs, service logic, repository mappings and API documentation together; use typed frontend API clients and do not duplicate backend authorization or entitlement rules in React.
+- Implement backend DTOs, service logic, repository mappings and API documentation together; use
+  contract-bound frontend API clients and do not duplicate backend authorization or entitlement
+  rules in React.
 - Follow the Definition of Done: tests pass, API changes are documented in Swagger/OpenAPI, validation and authorization are complete, and error responses follow the standard contract.
 - For an AI feature, preserve the private Spring Boot → `ai-service` boundary and the ownership rules in ARTICLE 3; detailed agent/workflow structure belongs in `CLAUDE.md`, not in frontend code or unreviewed provider prompts.
 - Do not approve or merge changes that violate these Articles, the applicable feature specification or the Definition of Done.

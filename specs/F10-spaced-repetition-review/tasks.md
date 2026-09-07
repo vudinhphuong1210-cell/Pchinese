@@ -11,7 +11,7 @@ description: "Actionable implementation tasks for F10 Spaced Repetition Review"
 ## Phase 1: Setup
 
 - [ ] T001 Create spaced-repetition module packages in backend/src/main/java/net/pchinese/review/ and review screen shells in frontend/src/features/review/.
-- [ ] T002 [P] Add the review-route entry point in frontend/src/routes/reviewRoutes.tsx.
+- [ ] T002 [P] Add the review-route entry point in frontend/src/routes/reviewRoutes.jsx.
 
 ## Phase 2: Foundational
 
@@ -30,7 +30,7 @@ description: "Actionable implementation tasks for F10 Spaced Repetition Review"
 - [ ] T008 [US1] Implement due selection by server time and deterministic four-rating scheduling policy in backend/src/main/java/net/pchinese/review/application/SrsSchedulingService.java.
 - [ ] T009 [US1] Implement review submit transaction, optimistic version check and immutable event append in backend/src/main/java/net/pchinese/review/application/ReviewSubmissionService.java.
 - [ ] T010 [US1] Implement due/list and submit DTOs/controllers in backend/src/main/java/net/pchinese/review/api/ReviewController.java.
-- [ ] T011 [US1] Implement typed review client, due-card/rating controls and accessible empty/error states in frontend/src/api/reviews.ts and frontend/src/features/review/ReviewQueuePage.tsx.
+- [ ] T011 [US1] Implement contract-bound review client, due-card/rating controls and accessible empty/error states in frontend/src/api/reviews.js and frontend/src/features/review/ReviewQueuePage.jsx.
 
 ## Phase 4: User Story 2 - Trust a personal review history (Priority: P2)
 
@@ -42,12 +42,12 @@ description: "Actionable implementation tasks for F10 Spaced Repetition Review"
 - [ ] T013 [P] [US2] Add F09 first-save, suspend and restore/overdue schedule integration tests in backend/src/test/java/net/pchinese/review/SavedWordScheduleIntegrationTest.java.
 - [ ] T014 [US2] Implement exact-retry replay and changed-fingerprint conflict handling in backend/src/main/java/net/pchinese/review/application/ReviewIdempotencyService.java.
 - [ ] T015 [US2] Implement F09 schedule lifecycle commands preserving past schedule/event data in backend/src/main/java/net/pchinese/review/application/SavedWordScheduleService.java.
-- [ ] T016 [US2] Implement stale-state recovery and retry UI in frontend/src/features/review/ReviewConflictPanel.tsx.
-- [ ] T017 [US2] Add Jest coverage for retry result reuse and conflict reload in frontend/src/features/review/ReviewQueuePage.test.tsx.
+- [ ] T016 [US2] Implement stale-state recovery and retry UI in frontend/src/features/review/ReviewConflictPanel.jsx.
+- [ ] T017 [US2] Add Jest coverage for retry result reuse and conflict reload in frontend/src/features/review/ReviewQueuePage.test.jsx.
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 
-- [ ] T018 [P] Add due-batch, rating and stale-retry E2E coverage in frontend/e2e/f10-spaced-repetition.spec.ts.
+- [ ] T018 [P] Add due-batch, rating and stale-retry E2E coverage in frontend/e2e/f10-spaced-repetition.spec.js.
 - [ ] T019 Run F10 quickstart, F09/F10 integration and clean-migration/backend/frontend test suites using specs/F10-spaced-repetition-review/quickstart.md.
 
 ## Dependencies and Execution Order
@@ -65,4 +65,3 @@ description: "Actionable implementation tasks for F10 Spaced Repetition Review"
 ## Implementation Strategy
 
 Deliver due queue and deterministic scheduling first. Add the idempotency/history and F09 delete/restore boundary before enabling review lifecycle in production.
-

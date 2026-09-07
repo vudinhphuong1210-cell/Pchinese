@@ -14,11 +14,14 @@ coverage/
 .env
 .env.*
 !.env.example
+backend/src/main/resources/application.yml
 
 # Tooling and operating-system files
 *.log
 .DS_Store
 Thumbs.db
+*.tmp
+*.swp
 .idea/
 .vscode/
 

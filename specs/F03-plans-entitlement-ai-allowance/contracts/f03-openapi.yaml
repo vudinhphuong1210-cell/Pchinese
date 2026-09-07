@@ -21,7 +21,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { $ref: '../../F02-profile-session-control/contracts/f02-openapi.yaml#/components/schemas/CurrentUserEnvelope' }
+              schema: { $ref: '../../F02-profile-preferences/contracts/f02-openapi.yaml#/components/schemas/CurrentUserEnvelope' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
 components:
   securitySchemes:

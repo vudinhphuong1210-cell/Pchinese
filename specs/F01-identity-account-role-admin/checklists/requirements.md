@@ -32,3 +32,7 @@
 ## Notes
 
 - Validation passed on 2026-09-05.
+- Revalidated on 2026-09-06 after adding explicit actors, entry points, access/entitlement rules,
+  state changes, failure cases, API impact, acceptance-test basis, and non-goals to `spec.md`.
+- Revalidated on 2026-09-06 after limiting audit reasons in SC-002 to lock/unlock actions, as
+  specified by FR-008 and SC-006.

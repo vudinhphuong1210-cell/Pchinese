@@ -13,7 +13,7 @@ No external service, AI provider or new infrastructure is required by F01.
 ## Decision 1 — Keep identity authority in the Spring Boot modular monolith
 
 **Decision**: Implement F01 in backend `auth`, `security` and minimal `users` modules. React
-only renders forms, calls typed API clients and supplies UX route guards.
+only renders forms, calls contract-bound API clients and supplies UX route guards.
 
 **Rationale**: The constitution assigns authentication, account state, authorization, transactions,
 persistence and audit to Spring Boot. It prohibits client-derived authority and any new service.
@@ -73,7 +73,7 @@ Account/Roles tab. A safe 404 prevents account-existence disclosure for invalid/
 
 **Decision**: Execute each role/status command in one service transaction. Lock the target account
 and active role state, evaluate self-action/final-active-ADMIN guards, mutate only if valid, update
-`authz_version`, revoke sessions where required and append a safe immutable audit outcome.
+`authz_version`, revoke affected credentials where required and append a safe immutable audit outcome.
 
 **Rationale**: Concurrent revokes/locks must not remove or disable the final active administrator.
 Server-side locks and constraints are required; client UI cannot protect this invariant.
@@ -121,10 +121,9 @@ exists. The privacy-preserving requirement is stricter than the older registry b
 
 **Decision**: F01 creates no subscription plan, entitlement, Premium, quota, profile-preference or
 privacy-export data. It provides the secure auth/session lifecycle and current-session logout.
-F02 may later expand profile and device-management UX; F03 owns automatic Free entitlement/quota.
+F02 owns profile preferences; F03 owns automatic Free entitlement/quota.
 
-**Rationale**: The Feature Map assigns those responsibilities to F02/F03. The API/session policy's
-Free two-device ceiling is a server configuration during F01, not a manual entitlement action.
+**Rationale**: The Feature Map assigns those responsibilities to F02/F03.
 
 **Alternatives considered**:
 

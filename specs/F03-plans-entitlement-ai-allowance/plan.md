@@ -11,8 +11,8 @@ activation, upgrade journey or Admin plan/quota control is introduced.
 
 ## Technical Context
 
-**Language/Version**: Java 21/Spring Boot 3.4.5; React 18/TypeScript strict  
-**Dependencies**: Spring Data JPA, Flyway, Jakarta Validation; typed API client/Jest  
+**Language/Version**: Java 21/Spring Boot 3.4.5; React 18/JavaScript/JSX
+**Dependencies**: Spring Data JPA, Flyway, Jakarta Validation; contract-bound API client/Jest
 **Storage**: `subscription_plans`, `user_entitlements`, `ai_usage_events`, F01 users in `DATA_short.md`  
 **Testing**: JUnit/Mockito, PostgreSQL-compatible integration, Jest summary/error mapping  
 **Scope**: Free assignment/summary, atomic allowance ledger and private application interface for F08/F11.
@@ -33,7 +33,7 @@ Post-design result: PASS.
 ~~~text
 backend/src/main/java/net/pchinese/
 └── entitlement/{api,application,domain,persistence}/
-frontend/src/api/me.ts
+frontend/src/api/me.js
 frontend/src/features/account/
 specs/F03-plans-entitlement-ai-allowance/
 ├── plan.md

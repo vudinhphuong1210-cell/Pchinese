@@ -10,7 +10,7 @@ playback or practice. No Premium upgrade, media URL, transcript or learner-priva
 
 ## Technical Context
 
-**Stack**: Java 21/Spring Boot/JPA/PostgreSQL; React 18/TypeScript/Vite; Flyway, Jest/JUnit  
+**Stack**: Java 21/Spring Boot/JPA/PostgreSQL; React 18/JavaScript/JSX/Vite; Flyway, Jest/JUnit
 **Storage**: topics, lessons, segments, media_assets and existing lesson_progresses  
 **Dependencies**: F03 Free entitlement, F04 publication/media lifecycle, F01 identity  
 **Scope**: catalog query/detail/projections and unavailable handling; F06 owns playback/progress.

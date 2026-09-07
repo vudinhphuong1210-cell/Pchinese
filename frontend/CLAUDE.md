@@ -9,7 +9,7 @@
 Frontend chịu trách nhiệm:
 
 - route-level composition, navigation, form interaction và local view state;
-- typed request/response client, mapping response envelope và hiển thị lỗi an toàn;
+- request/response API client theo contract, mapping response envelope và hiển thị lỗi an toàn;
 - accessibility, responsive layout, theme và presentation formatting;
 - UI loading, empty, error, retry và optimistic feedback khi API contract cho phép.
 
@@ -22,18 +22,18 @@ Frontend không chịu trách nhiệm:
 
 ```text
 src/
-├── api/          # HTTP wrapper, typed resource clients và API types
+├── api/          # HTTP wrapper, resource clients theo contract và API schemas
 ├── components/   # UI dùng lại, không chứa nghiệp vụ feature
 ├── features/     # admin, auth, dictation, shadowing, vocabulary, ai-buddy, progress
 ├── pages/        # composition theo route
 ├── routes/       # route definitions và navigation guards mang tính UX
 ├── hooks/        # hooks dùng lại
 ├── lib/          # helper thuần: format, parsing, accessibility
-├── types/        # shared TypeScript types không phụ thuộc React
+├── contracts/    # shared API schemas/JSDoc definitions không phụ thuộc React
 └── test/         # unit, integration, e2e
 ```
 
-Không tạo một global store khổng lồ. Giữ state gần feature sở hữu nó; chỉ đưa state thật sự cross-route vào lớp shared đã được phê duyệt. API cache không được xem là authorization source.
+Không tạo một global store khổng lồ. Giữ state gần feature sở hữu nó; chỉ đưa state thật sự cross-route vào lớp shared đã được phê duyệt. API cache không được xem là authorization source. File render JSX dùng `.jsx`; mọi file frontend không render JSX dùng `.js`.
 
 ## 3. API và authentication client contract
 
@@ -65,6 +65,6 @@ Không tạo một global store khổng lồ. Giữ state gần feature sở h�
 ## 6. Kiểm thử và review
 
 - Unit-test utility, formatting, state mapping và component behavior bằng Jest.
-- Integration-test typed client với API mock: envelope, validation/error mapping, pagination, 401/403/404/409/429.
+- Integration-test API client theo contract với API mock: envelope, validation/error mapping, pagination, 401/403/404/409/429.
 - E2E dùng `data-testid`, kiểm tra critical learner/admin flows mà không phụ thuộc output AI không xác định.
-- Review phải kiểm tra: type safety, không lộ token/secret, backend authority không bị sao chép, state UI đầy đủ, semantic token, keyboard/mobile behavior.
+- Review phải kiểm tra: response-shape validation, không lộ token/secret, backend authority không bị sao chép, state UI đầy đủ, semantic token, keyboard/mobile behavior.

@@ -11,7 +11,7 @@ progress unlock/completion.
 
 ## Technical Context
 
-**Stack**: Java 21/Spring Boot/JPA/PostgreSQL; React 18/TypeScript  
+**Stack**: Java 21/Spring Boot/JPA/PostgreSQL; React 18/JavaScript/JSX
 **Storage**: dictation_attempts, segments answer key, lesson_progresses best-score field  
 **Dependencies**: F01 identity, F04 content, F06 practiceability/progress service  
 **Testing**: deterministic evaluator unit tests, transaction/idempotency integration, Player Jest/E2E  
@@ -31,7 +31,7 @@ progress unlock/completion.
 ~~~text
 backend/src/main/java/net/pchinese/dictation/{api,application,domain,persistence}/
 frontend/src/features/{player,dictation}/
-frontend/src/api/dictation.ts
+frontend/src/api/dictation.js
 specs/F07-dictation-practice/{plan,research,data-model,quickstart}.md
 specs/F07-dictation-practice/contracts/f07-api.md
 ~~~

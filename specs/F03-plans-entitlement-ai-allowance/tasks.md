@@ -11,7 +11,7 @@ description: "Actionable implementation tasks for F03 Plans, Entitlement, and AI
 ## Phase 1: Setup
 
 - [ ] T001 Create the entitlement and allowance package layout in backend/src/main/java/net/pchinese/entitlement/ and backend/src/main/java/net/pchinese/allowance/.
-- [ ] T002 [P] Add the learner account allowance-summary placeholder to frontend/src/features/settings/AllowanceSummaryCard.tsx.
+- [ ] T002 [P] Add the learner account allowance-summary placeholder to frontend/src/features/settings/AllowanceSummaryCard.jsx.
 
 ## Phase 2: Foundational
 
@@ -28,7 +28,7 @@ description: "Actionable implementation tasks for F03 Plans, Entitlement, and AI
 - [ ] T006 [P] [US1] Add entitlement-provisioning and canonical current-user safe-entitlement integration tests in backend/src/test/java/net/pchinese/profile/CurrentUserEntitlementIT.java.
 - [ ] T007 [US1] Implement rolling-cycle calculation and safe entitlement summary projection in backend/src/main/java/net/pchinese/entitlement/application/EntitlementService.java.
 - [ ] T008 [US1] After F02 T009, extend its canonical current-user projection with the safe F03 entitlement summary in backend/src/main/java/net/pchinese/profile/api/CurrentUserController.java.
-- [ ] T009 [US1] Implement typed allowance-summary client and learner card states in frontend/src/api/entitlement.ts and frontend/src/features/settings/AllowanceSummaryCard.tsx.
+- [ ] T009 [US1] Implement contract-bound allowance-summary client and learner card states in frontend/src/api/entitlement.js and frontend/src/features/settings/AllowanceSummaryCard.jsx.
 
 ## Phase 4: User Story 2 - Enforce AI allowance fairly (Priority: P1)
 
@@ -44,7 +44,7 @@ description: "Actionable implementation tasks for F03 Plans, Entitlement, and AI
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 
-- [ ] T015 [P] Add F03 E2E allowance-summary and exhausted-state coverage in frontend/e2e/f03-entitlement.spec.ts.
+- [ ] T015 [P] Add F03 E2E allowance-summary and exhausted-state coverage in frontend/e2e/f03-entitlement.spec.js.
 - [ ] T016 Run clean-migration, lock/unlock-preservation and quickstart checks in specs/F03-plans-entitlement-ai-allowance/quickstart.md.
 
 ## Dependencies and Execution Order

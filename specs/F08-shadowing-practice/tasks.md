@@ -12,7 +12,7 @@ description: "Actionable implementation tasks for F08 Shadowing Practice"
 
 - [ ] T001 Create Shadowing backend/storage packages in backend/src/main/java/net/pchinese/shadowing/ and backend/src/main/java/net/pchinese/storage/.
 - [ ] T002 [P] Create the private Node.js and TypeScript ai-service runtime scaffold in ai-service/package.json, ai-service/tsconfig.json, ai-service/src/server.ts and ai-service/vitest.config.ts, plus the private assessment module in ai-service/src/shadowing/index.ts and ai-service/src/contracts/shadowing.ts.
-- [ ] T003 [P] Create the dedicated Shadowing route and recording UI shell in frontend/src/features/shadowing/ShadowingPage.tsx and frontend/src/routes/shadowingRoutes.tsx.
+- [ ] T003 [P] Create the dedicated Shadowing route and recording UI shell in frontend/src/features/shadowing/ShadowingPage.jsx and frontend/src/routes/shadowingRoutes.jsx.
 
 ## Phase 2: Foundational
 
@@ -32,7 +32,7 @@ description: "Actionable implementation tasks for F08 Shadowing Practice"
 - [ ] T010 [US1] Implement validated recording upload, private storage and scan-state transitions in backend/src/main/java/net/pchinese/shadowing/application/RecordingService.java.
 - [ ] T011 [US1] Implement attempt creation, request fingerprinting and F03 reservation before private work in backend/src/main/java/net/pchinese/shadowing/application/ShadowingAttemptService.java.
 - [ ] T012 [US1] Implement multipart recording and attempt API DTOs/controllers in backend/src/main/java/net/pchinese/shadowing/api/ShadowingRecordingController.java.
-- [ ] T013 [US1] Implement typed recording client, MediaRecorder upload, permission/error handling and locked-segment state in frontend/src/api/shadowing.ts and frontend/src/features/shadowing/RecordingPanel.tsx.
+- [ ] T013 [US1] Implement contract-bound recording client, MediaRecorder upload, permission/error handling and locked-segment state in frontend/src/api/shadowing.js and frontend/src/features/shadowing/RecordingPanel.jsx.
 
 ## Phase 4: User Story 2 - Receive and manage feedback (Priority: P1)
 
@@ -45,11 +45,11 @@ description: "Actionable implementation tasks for F08 Shadowing Practice"
 - [ ] T016 [US2] Implement private HMAC/mTLS assessment handler and dedicated speech-engine adapter with bounded schema output in ai-service/src/shadowing/shadowingAssessment.ts.
 - [ ] T017 [US2] Implement private assessment client, result validation, F03 success/refund settlement and approved practice-summary update in backend/src/main/java/net/pchinese/shadowing/application/ShadowingAssessmentService.java.
 - [ ] T018 [US2] Implement owner-only attempt list/detail endpoints and retention cleanup job in backend/src/main/java/net/pchinese/shadowing/api/ShadowingAttemptController.java and backend/src/main/java/net/pchinese/shadowing/application/ShadowingRetentionJob.java.
-- [ ] T019 [US2] Implement processing, completed, failed and expired feedback UI without transcript/playback storage details in frontend/src/features/shadowing/ShadowingResultPanel.tsx.
+- [ ] T019 [US2] Implement processing, completed, failed and expired feedback UI without transcript/playback storage details in frontend/src/features/shadowing/ShadowingResultPanel.jsx.
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 
-- [ ] T020 [P] Add Shadowing upload, quota retry/refund, provider failure and retention E2E coverage in frontend/e2e/f08-shadowing.spec.ts.
+- [ ] T020 [P] Add Shadowing upload, quota retry/refund, provider failure and retention E2E coverage in frontend/e2e/f08-shadowing.spec.js.
 - [ ] T021 Verify ai-service has no public route, Mastra memory, database write or raw-recording log in ai-service/src/shadowing/ and run specs/F08-shadowing-practice/quickstart.md.
 
 ## Dependencies and Execution Order

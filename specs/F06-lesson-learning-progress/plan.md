@@ -10,7 +10,7 @@ Dictation and Shadowing may update practice metrics but never unlock/complete a 
 
 ## Technical Context
 
-**Stack**: Java 21/Spring Boot/JPA/PostgreSQL; React 18/TypeScript/Vite  
+**Stack**: Java 21/Spring Boot/JPA/PostgreSQL; React 18/JavaScript/JSX/Vite
 **Storage**: lesson_progresses, lessons/segments/media; no new practice result table  
 **Dependencies**: F01 identity, F03 access, F04 availability, F05 catalog  
 **Testing**: JUnit/Mockito, integration/concurrency, Jest Player/E2E  

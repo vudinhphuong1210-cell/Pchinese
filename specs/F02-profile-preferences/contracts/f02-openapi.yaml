@@ -1,0 +1,135 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F02 Profile Preferences API
+  version: 1.0.0-design
+  description: >
+    Design contract for F02. Public paths are served below /api/v1 and use the
+    standard success/data/error/meta envelope.
+servers:
+  - url: /api/v1
+tags:
+  - name: Profile
+paths:
+  /me:
+    get:
+      tags: [Profile]
+      summary: Read the canonical current-user projection, including profile and safe entitlement summary
+      operationId: getCurrentUser
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUserEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+    patch:
+      tags: [Profile]
+      summary: Update approved caller preferences and return the canonical current-user projection
+      operationId: updateCurrentUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdateRequest' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUserEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    ValidationError:
+      description: Safe input validation error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid credential
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    StateConflict:
+      description: Current state or version rejects the requested transition
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+  schemas:
+    ProfileUpdateRequest:
+      type: object
+      required: [expectedProfileVersion]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 120 }
+        nativeLanguageCode: { type: string, minLength: 2, maxLength: 10 }
+        interfaceLocale: { type: string, minLength: 2, maxLength: 20 }
+        timeZone: { type: string, minLength: 1, maxLength: 64 }
+        targetHskLevel: { type: integer, minimum: 1, maximum: 9 }
+        dailyGoalMinutes: { type: integer, minimum: 1, maximum: 240 }
+        expectedProfileVersion: { type: integer, minimum: 0 }
+      additionalProperties: false
+    Profile:
+      type: object
+      required: [profileVersion]
+      properties:
+        displayName: { type: string }
+        nativeLanguageCode: { type: string }
+        interfaceLocale: { type: string }
+        timeZone: { type: string }
+        targetHskLevel: { type: integer }
+        dailyGoalMinutes: { type: integer }
+        profileVersion: { type: integer, minimum: 0 }
+    EntitlementSummary:
+      description: Safe learner-visible F03 entitlement fragment; this projection never exposes provider or payment data.
+      type: object
+      required: [planCode, allowanceLimit, usedUnits, remainingUnits, cycleStartAt, cycleEndAt]
+      properties:
+        planCode: { type: string, const: FREE }
+        allowanceLimit: { type: integer, const: 30 }
+        usedUnits: { type: integer, minimum: 0, maximum: 30 }
+        remainingUnits: { type: integer, minimum: 0, maximum: 30 }
+        cycleStartAt: { type: string, format: date-time }
+        cycleEndAt: { type: string, format: date-time }
+    CurrentUserProjection:
+      description: Canonical GET and PATCH /me projection, composed by F02 with the safe F03 entitlement fragment.
+      type: object
+      required: [profile, entitlement]
+      properties:
+        profile: { $ref: '#/components/schemas/Profile' }
+        entitlement: { $ref: '#/components/schemas/EntitlementSummary' }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties:
+        correlationId: { type: string, format: uuid }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT]
+        message: { type: string }
+    CurrentUserEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/CurrentUserProjection' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []

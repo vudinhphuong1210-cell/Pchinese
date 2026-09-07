@@ -11,7 +11,7 @@ description: "Actionable implementation tasks for F04 Content Administration"
 ## Phase 1: Setup
 
 - [ ] T001 Create content-administration module packages in backend/src/main/java/net/pchinese/content/ and backend/src/main/java/net/pchinese/media/.
-- [ ] T002 [P] Create the protected content-administration route and page shell in frontend/src/features/admin/content/ContentAdminPage.tsx and frontend/src/routes/adminContentRoutes.tsx.
+- [ ] T002 [P] Create the protected content-administration route and page shell in frontend/src/features/admin/content/ContentAdminPage.jsx and frontend/src/routes/adminContentRoutes.jsx.
 
 ## Phase 2: Foundational
 
@@ -31,7 +31,7 @@ description: "Actionable implementation tasks for F04 Content Administration"
 - [ ] T009 [US1] Implement versioned topic, Free-lesson and segment draft services in backend/src/main/java/net/pchinese/content/application/ContentDraftService.java.
 - [ ] T010 [US1] Implement controlled media upload/allowlisted metadata intake and scan-state service in backend/src/main/java/net/pchinese/media/application/MediaAssetService.java.
 - [ ] T011 [US1] Implement validated ADMIN draft/list/create/update DTOs and controllers in backend/src/main/java/net/pchinese/content/api/ContentAdminController.java and backend/src/main/java/net/pchinese/media/api/MediaAdminController.java.
-- [ ] T012 [US1] Implement typed admin content client and accessible draft editors in frontend/src/api/adminContent.ts and frontend/src/features/admin/content/ContentEditor.tsx.
+- [ ] T012 [US1] Implement contract-bound admin content client and accessible draft editors in frontend/src/api/adminContent.js and frontend/src/features/admin/content/ContentEditor.jsx.
 
 ## Phase 4: User Story 2 - Publish and retire safe content (Priority: P1)
 
@@ -44,11 +44,11 @@ description: "Actionable implementation tasks for F04 Content Administration"
 - [ ] T015 [US2] Implement topic/lesson/segment publication, unpublication and archive transitions in backend/src/main/java/net/pchinese/content/application/ContentPublicationService.java.
 - [ ] T016 [US2] Implement media approve/reject/quarantine transitions and dependent-content invalidation in backend/src/main/java/net/pchinese/media/application/MediaLifecycleService.java.
 - [ ] T017 [US2] Implement the explicit publish, unpublish and archive endpoints for topics/lessons/segments plus approve, reject and quarantine endpoints for media, with recoverable conflict projections, in backend/src/main/java/net/pchinese/content/api/ContentLifecycleController.java.
-- [ ] T018 [US2] Implement accessible publish prerequisites, confirmation dialogs and stale-state reload UI in frontend/src/features/admin/content/PublicationControls.tsx.
+- [ ] T018 [US2] Implement accessible publish prerequisites, confirmation dialogs and stale-state reload UI in frontend/src/features/admin/content/PublicationControls.jsx.
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 
-- [ ] T019 [P] Add ADMIN content lifecycle E2E coverage in frontend/e2e/f04-content-administration.spec.ts.
+- [ ] T019 [P] Add ADMIN content lifecycle E2E coverage in frontend/e2e/f04-content-administration.spec.js.
 - [ ] T020 Run clean Flyway migration, F04 quickstart and backend/frontend test suites using specs/F04-content-administration/quickstart.md.
 
 ## Dependencies and Execution Order

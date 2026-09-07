@@ -1,0 +1,39 @@
+# Copy values into environment variables or an untracked application-local.yml.
+# Never commit database credentials, JWT keys, encryption keys, or token pepper.
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/pchinese
+    username: pchinese
+    password: CHANGE_ME
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: no-reply@example.com
+    password: CHANGE_ME
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+pchinese:
+  mail:
+    enabled: true
+    from: no-reply@example.com
+    frontend-url: https://app.example.com
+  security:
+    issuer: pchinese-api
+    audience: pchinese-web
+    key-id: production-key-id
+    # Base64-encoded PKCS#8 RSA private key; set with PCHINESE_JWT_PRIVATE_KEY.
+    private-key-pkcs8-base64: CHANGE_ME
+    # Base64-encoded X.509 RSA public key; set with PCHINESE_JWT_PUBLIC_KEY.
+    public-key-x509-base64: CHANGE_ME
+    # Base64-encoded AES-256 key; set with PCHINESE_ENCRYPTION_KEY.
+    encryption-key-base64: CHANGE_ME
+    # Set with PCHINESE_TOKEN_PEPPER.
+    token-pepper: CHANGE_ME
+    allowed-origins:
+      - https://app.example.com
+    cookie-secure: true

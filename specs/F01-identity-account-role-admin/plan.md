@@ -8,7 +8,7 @@
 Deliver the first protected Pchinese product slice: account registration and verification, sign-in,
 credential recovery, server-managed session lifecycle, and the restricted Admin Account/Roles tab.
 Spring Boot remains the transactional authority for credentials, sessions, account status, role
-grants and audit records. React supplies typed client flows, accessible form UX and route guards
+grants and audit records. React supplies contract-bound client flows, accessible form UX and route guards
 only; it never treats its state or JWT claims as authority.
 
 The implementation uses the existing Java 21/Spring Boot modular-monolith target and the canonical
@@ -17,11 +17,11 @@ learner-data administration capability, or direct browser-to-provider call.
 
 ## Technical Context
 
-**Language/Version**: Java 21 + Spring Boot 3.4.5 (Maven); TypeScript strict + React 18 + Vite  
+**Language/Version**: Java 21 + Spring Boot 3.4.5 (Maven); JavaScript/JSX + React 18 + Vite
 **Primary Dependencies**: Spring Security, Spring Web, Jakarta Validation, Spring Data JPA, Flyway,
-PostgreSQL driver; React typed API client, Tailwind CSS 3.x, Jest  
+PostgreSQL driver; React contract-bound API client, Tailwind CSS 3.x, Jest
 **Storage**: PostgreSQL 18; canonical auth tables in `DATA_short.md`; schema migration via Flyway  
-**Testing**: JUnit 5 + Mockito; Spring Boot/PostgreSQL-compatible integration tests; Jest typed-client
+**Testing**: JUnit 5 + Mockito; Spring Boot/PostgreSQL-compatible integration tests; Jest API-client
 and component tests; browser E2E for critical identity/admin journeys  
 **Target Platform**: Spring Boot API server and responsive browser SPA; mobile client contract is
 documented but no native client is implemented in this feature  
@@ -31,7 +31,7 @@ first sign-in in under five minutes (F01 SC-003). No additional latency SLO is i
 **Constraints**: Public API uses `/api/v1` and `{ success, data, error, meta }`; access JWT lives
 10 minutes in browser memory; refresh is opaque, rotated and never exposed in ordinary JSON; no raw
 credential/token/private learning data in API, logs or audit events.  
-**Scale/Scope**: One F01 slice: 10 authentication/session endpoints, 5 exact-ID Admin account/role
+**Scale/Scope**: One F01 slice: 7 authentication endpoints, 5 exact-ID Admin account/role
 operations, their DTOs, tables/migrations, React flows and contract/security tests.
 
 ## Constitution Check
@@ -59,10 +59,8 @@ operations, their DTOs, tables/migrations, React flows and contract/security tes
    Pending, disabled, locked or otherwise unmanageable IDs return the same safe not-found result.
 4. Every accepted or rejected sensitive role/lock/unlock command writes a minimal safe audit
    outcome. Only successful role lifecycle changes write `user_roles` grant/revoke rows.
-5. F01 owns the secure auth/session API and current-session logout. F02 may later compose the
-   profile/settings and device-management UX; F01 does not create F03 plan/entitlement records.
-   Until F03 owns entitlement resolution, the documented Free two-session ceiling is a server
-   authentication configuration, not a client rule or manual entitlement operation.
+5. F01 owns the secure authentication API and current-session logout. F02 owns profile settings;
+   F01 does not create F03 plan/entitlement records.
 
 ### Post-design gate
 
@@ -116,7 +114,7 @@ backend/
 
 frontend/
 └── src/
-    ├── api/                         # auth and admin-users typed clients + DTOs
+    ├── api/                         # auth and admin-users contract-bound clients + DTO schemas
     ├── features/
     │   ├── auth/                    # register, verify, login, reset, in-memory auth session
     │   └── admin/                   # exact-ID Account/Roles tab only
@@ -156,7 +154,7 @@ in `src/components/`.
   `X-Refresh-Request-Id` replays a KMS-encrypted result for at most 30 seconds; a different request
   against a rotated/revoked token revokes its whole family, appends a safe high-severity audit event
   and returns generic `401 REFRESH_TOKEN_INVALID`.
-- Logout/revoke uses owned session IDs only. Role grant/revoke, password reset and account lock
+- Logout revokes only the current refresh-session family. Role grant/revoke, password reset and account lock
   increment `authz_version` and revoke affected sessions/families atomically.
 
 ### 3. Minimal Admin Account/Roles capability
@@ -178,11 +176,9 @@ in `src/components/`.
 - Add guest-only Register, Verify email, Login, Forgot password and Reset password pages. Keep them
   outside authenticated app shell; use neutral messages for requests that might otherwise enumerate
   accounts.
-- Add typed `auth` and `adminUsers` API modules. Implement in-memory access token state and
+- Add contract-bound `auth` and `adminUsers` API modules. Implement in-memory access token state and
   refresh single-flight; clear state and redirect on failed refresh, revoked token or current-session
   revoke. Never introduce browser token storage or a global domain store.
-- Add Session Settings UI for current/selected/all session commands required by F01; F02 later owns
-  richer session-management/profile presentation. Current-session revoke requires confirmation.
 - Add the Admin Account/Roles tab: exact UUID input first, minimal projection only, confirm dialogs
   for destructive role/status commands, reason selector and conditional `OTHER` note. Do not make
   optimistic admin mutations; reload projection after `409`.
@@ -191,12 +187,12 @@ in `src/components/`.
 
 ### 5. Contract, migration and test sequence
 
-1. Update OpenAPI/API.md and typed DTO contracts first, including the neutral registration outcome.
+1. Update OpenAPI/API.md and API DTO/contract schemas first, including the neutral registration outcome.
 2. Add schema/entity/repository migrations in canonical auth dependency order:
    `users → user_roles → auth_sessions → refresh_tokens → auth_action_tokens →
    refresh_idempotency → auth_audit_events`.
 3. Implement services and transaction/locking rules, then thin controllers and exception mapping.
-4. Implement typed frontend clients before forms/pages; map `400/401/403/404/409/429` to safe UX.
+4. Implement contract-bound frontend clients before forms/pages; map `400/401/403/404/409/429` to safe UX.
 5. Add unit, integration, contract and E2E tests; verify migrations on a clean PostgreSQL database.
 
 ## Complexity Tracking

@@ -19,7 +19,7 @@
 
 ### User Story 1 - Create and secure an account (Priority: P1)
 
-As a learner, I want to register, verify, sign in, recover access, and end my sessions so that only
+As a learner, I want to register, verify, sign in, recover access, and sign out so that only
 I can use my learning account.
 
 **Why this priority**: Every protected learner journey depends on a verified, revocable identity.
@@ -67,12 +67,62 @@ operation is audited; a non-administrator and prohibited self/final-admin action
 - A locked account cannot use an existing session or create a new one; unlock requires a new sign-in.
 - Role or account-status changes end affected access and preserve learner-private data.
 
+## Feature Boundaries and Governance
+
+### Actors and entry points
+
+- **Learner**: starts registration, verifies an account, signs in, requests credential recovery, or
+  signs out through the account-access experience.
+- **Authorized administrator**: enters the Account/Roles tab with an exact account identifier to
+  inspect the permitted minimal projection or request a role/access-state change for another
+  account.
+- **Unauthenticated, locked, or unauthorized actor**: receives a safe failure result and cannot
+  obtain target-account information or perform a protected action.
+
+### Access, entitlement, and state rules
+
+- Public account-start and recovery actions use safe, neutral results. Protected actions use the
+  current account, role, and session state controlled by the system.
+- `ADMIN` is an account-administration role only. This feature neither grants nor changes Premium
+  entitlement or AI quota, and those values never authorize an account or role administration
+  action.
+- A newly registered account moves from pending verification to active only after successful
+  verification. An administrator may lock an eligible active account; a later authorized unlock
+  restores only its account access state, never an old session. Role grants and revocations change
+  only the target's `ADMIN` role and revoke affected access as required by this specification.
+
+### Failure cases and API impact
+
+- Duplicate, invalid, expired, unavailable, unmanageable, self-targeted, and final-active-
+  administrator requests follow the safe outcomes in the acceptance scenarios and edge cases;
+  they do not disclose account existence or learner-private data, and they do not partially change
+  account, role, or session state.
+- This feature adds account-lifecycle and sign-out operations for learners, plus protected
+  exact-identifier Account/Roles operations for administrators. Their responses expose only the
+  information permitted by this specification and do not change the learning, entitlement, quota,
+  or learner-data administration interfaces.
+
+### Acceptance and test basis
+
+- The independent tests and acceptance scenarios for User Stories 1 and 2, together with the edge
+  cases above, are the acceptance test basis. They cover neutral account recovery, current-state
+  authorization, exact-ID-only administration, audit
+  evidence, safe validation failures, and self/final-administrator rejection.
+
+### Non-goals
+
+- Account browsing; search by learner name, email, profile, or learning record.
+- Viewing or changing a learner's attempts, recordings, chats, vocabulary, progress, Premium
+  entitlement, or AI quota.
+- Public creation of an `ADMIN` account, profile preferences, self-service device/session management, or any
+  account lifecycle not stated in this feature.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: Learners MUST be able to register, verify their account, sign in, recover access,
-  and end current or selected active sessions.
+  and sign out of the current account session.
 - **FR-002**: The system MUST use the current server-controlled identity and account state for every
   protected operation; client-provided role or account-state claims are not authoritative.
 - **FR-003**: Only an authorized administrator MAY grant or revoke `ADMIN` for another account.
@@ -106,8 +156,8 @@ operation is audited; a non-administrator and prohibited self/final-admin action
 
 - **SC-001**: 100% of protected account actions reject an unauthenticated, locked, or unauthorized
   actor without exposing target data.
-- **SC-002**: 100% of role, lock, and unlock actions produce an auditable actor, target, reason,
-  and outcome record.
+- **SC-002**: 100% of role, lock, and unlock actions produce an auditable actor, target, and
+  outcome record.
 - **SC-003**: A learner can complete account registration, verification, and first sign-in in under
   5 minutes under normal conditions.
 - **SC-004**: No administrator action in this feature reveals learner-private learning data.

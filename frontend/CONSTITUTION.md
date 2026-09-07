@@ -4,9 +4,9 @@
 
 ## ARTICLE 1 — Stack và cấu trúc bất biến
 
-- Dùng React 18, TypeScript strict mode, Vite, Tailwind CSS 3.x và npm.
-- Không dùng class component hoặc `any`.
-- Giữ cấu trúc theo feature; component chung không chứa nghiệp vụ feature và feature không gọi API ngoài typed client.
+- Dùng React 18, JavaScript/JSX, Vite, Tailwind CSS 3.x và npm. File render JSX dùng `.jsx`; mọi file frontend không render JSX dùng `.js`.
+- Không dùng class component.
+- Giữ cấu trúc theo feature; component chung không chứa nghiệp vụ feature và feature không gọi API ngoài client theo API contract.
 - Không thêm framework, state manager, design system hay dependency lớn nếu chưa có feature spec/phê duyệt.
 
 ## ARTICLE 2 — Backend là authority
@@ -31,7 +31,7 @@
 
 ## ARTICLE 5 — Chất lượng và review
 
-- Không merge khi TypeScript, lint, format hoặc test liên quan còn lỗi.
+- Không merge khi JavaScript lint, format, build hoặc test liên quan còn lỗi.
 - Test phải dùng stable `data-testid` cho E2E, không couple vào styling class hay AI output ngẫu nhiên.
-- Mọi thay đổi API-facing phải cập nhật typed client và UI error states cùng lúc.
+- Mọi thay đổi API-facing phải cập nhật API client theo contract và UI error states cùng lúc.
 - Không duyệt thay đổi vi phạm `AGENT.md`, tài liệu này, design contract hay feature spec.

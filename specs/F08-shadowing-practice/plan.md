@@ -13,7 +13,7 @@ Deliver a protected shadowing practice screen for unlocked lesson segments. Spri
 | --- | --- |
 | Public API and authority | Spring Boot under /api/v1; verifies authentication, lesson unlock, ownership, quotas, idempotency, persistence, and retention jobs |
 | AI boundary | Spring Boot calls POST /internal/v1/shadowing/assess over mTLS or HMAC with replay protection; ai-service is stateless |
-| Client | React screen, MediaRecorder upload, attempt-status polling, typed API clients; never calls ai-service |
+| Client | React screen, MediaRecorder upload, attempt-status polling, contract-bound API clients; never calls ai-service |
 | Storage | Private encrypted object storage for original recording; application database holds metadata and encrypted feedback only |
 | Validation | Server validates MIME, byte limit, duration, segment context and malware/scan status before assessment |
 | Security | Owner-only recording and attempt access; no transcript is returned, persisted, or logged |

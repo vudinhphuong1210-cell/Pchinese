@@ -29,7 +29,7 @@ description: "Actionable implementation tasks for F09 Dictionary and Personal Vo
 - [ ] T007 [P] [US1] Add normalized lookup/ranking repository tests in backend/src/test/java/net/pchinese/dictionary/DictionarySearchRepositoryTest.java.
 - [ ] T008 [US1] Implement normalized published-entry search/detail and available-asset projection in backend/src/main/java/net/pchinese/dictionary/application/DictionaryService.java.
 - [ ] T009 [US1] Implement public dictionary search/detail controllers with bounded pagination in backend/src/main/java/net/pchinese/dictionary/api/DictionaryController.java.
-- [ ] T010 [US1] Implement typed dictionary client, search forms, detail view and accessible empty/unavailable states in frontend/src/api/dictionary.ts and frontend/src/features/dictionary/DictionaryPage.tsx.
+- [ ] T010 [US1] Implement contract-bound dictionary client, search forms, detail view and accessible empty/unavailable states in frontend/src/api/dictionary.js and frontend/src/features/dictionary/DictionaryPage.jsx.
 
 ## Phase 4: User Story 2 - Build a private vocabulary list (Priority: P1)
 
@@ -41,12 +41,12 @@ description: "Actionable implementation tasks for F09 Dictionary and Personal Vo
 - [ ] T012 [P] [US2] Add transaction tests for F10 ensure/suspend/restore commands in backend/src/test/java/net/pchinese/vocabulary/SavedWordServiceTest.java.
 - [ ] T013 [US2] Implement one-per-entry save, encrypted note update, delete and restore service with F10 command calls in backend/src/main/java/net/pchinese/vocabulary/application/SavedWordService.java.
 - [ ] T014 [US2] Implement owner-only saved-word list/create/update/delete endpoints in backend/src/main/java/net/pchinese/vocabulary/api/SavedWordController.java.
-- [ ] T015 [US2] Implement typed saved-word client, private note editor and due-list entry UI in frontend/src/api/savedWords.ts and frontend/src/features/dictionary/SavedWordsPanel.tsx.
-- [ ] T016 [US2] Add Jest coverage for note validation, unavailable source projection and restore UI in frontend/src/features/dictionary/SavedWordsPanel.test.tsx.
+- [ ] T015 [US2] Implement contract-bound saved-word client, private note editor and due-list entry UI in frontend/src/api/savedWords.js and frontend/src/features/dictionary/SavedWordsPanel.jsx.
+- [ ] T016 [US2] Add Jest coverage for note validation, unavailable source projection and restore UI in frontend/src/features/dictionary/SavedWordsPanel.test.jsx.
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 
-- [ ] T017 [P] Add public dictionary and private vocabulary lifecycle E2E coverage in frontend/e2e/f09-dictionary-vocabulary.spec.ts.
+- [ ] T017 [P] Add public dictionary and private vocabulary lifecycle E2E coverage in frontend/e2e/f09-dictionary-vocabulary.spec.js.
 - [ ] T018 Run F09 quickstart and clean-migration/backend/frontend test suites using specs/F09-dictionary-personal-vocabulary/quickstart.md.
 
 ## Dependencies and Execution Order
@@ -64,4 +64,3 @@ description: "Actionable implementation tasks for F09 Dictionary and Personal Vo
 ## Implementation Strategy
 
 Ship public PUBLISHED dictionary search/detail first. Release private saved-word mutations only with the completed F10 state-preservation transaction boundary.
-

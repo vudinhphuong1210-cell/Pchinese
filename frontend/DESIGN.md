@@ -1,12 +1,12 @@
-# S Chinese — Dashboard Design System
+# P Chinese — Dashboard Design System
 
-> **Nguồn tham chiếu:** giao diện học viên tại trang Shadowing của S Chinese và ảnh desktop được cung cấp, kiểm tra ngày 2026-09-03.
+> **Nguồn tham chiếu:** giao diện học viên tại trang Shadowing của P Chinese và ảnh desktop được cung cấp, kiểm tra ngày 2026-09-03.
 >
 > **Phạm vi:** design system cho các màn hình ứng dụng sau khi đăng nhập: Trang chủ, Dictation, Shadowing, Luyện nói, Luyện từ vựng, Video của tôi và các màn hình thư viện. Landing page marketing có thể dùng bố cục khác, nhưng không được thay thế app shell dưới đây.
 
 ## 1. Tinh thần giao diện
 
-S Chinese là một **study dashboard tối, ấm và tập trung vào nội dung**. Nền gần đen pha rượu vang tạo cảm giác yên tĩnh khi học lâu; hồng fuchsia là tín hiệu hành động, không phải nền trang trí. Nội dung bài học — ảnh video, chữ Hán, trạng thái HSK, thời lượng và tiến độ — phải dễ quét trong một nhịp nhìn.
+P Chinese là một **study dashboard tối, ấm và tập trung vào nội dung**. Nền gần đen pha rượu vang tạo cảm giác yên tĩnh khi học lâu; hồng fuchsia là tín hiệu hành động, không phải nền trang trí. Nội dung bài học — ảnh video, chữ Hán, trạng thái HSK, thời lượng và tiến độ — phải dễ quét trong một nhịp nhìn.
 
 Đây không phải landing page tối giản và cũng không phải bảng quản trị lạnh:
 

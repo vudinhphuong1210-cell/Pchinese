@@ -11,7 +11,7 @@ description: "Actionable implementation tasks for F07 Dictation Practice"
 ## Phase 1: Setup
 
 - [ ] T001 Create Dictation module packages in backend/src/main/java/net/pchinese/dictation/ and in-player components in frontend/src/features/dictation/.
-- [ ] T002 [P] Add the Dictation panel mount point to frontend/src/features/lesson-player/LessonPlayer.tsx.
+- [ ] T002 [P] Add the Dictation panel mount point to frontend/src/features/lesson-player/LessonPlayer.jsx.
 
 ## Phase 2: Foundational
 
@@ -30,7 +30,7 @@ description: "Actionable implementation tasks for F07 Dictation Practice"
 - [ ] T008 [US1] Implement Unicode/whitespace/punctuation normalization and 100-or-0 exact simplified-Hanzi evaluator in backend/src/main/java/net/pchinese/dictation/application/DictationEvaluationService.java.
 - [ ] T009 [US1] Implement attempt start/submit transaction, F06 gate and approved best-score update without progress unlock in backend/src/main/java/net/pchinese/dictation/application/DictationAttemptService.java.
 - [ ] T010 [US1] Implement Dictation start/submit DTOs and controllers in backend/src/main/java/net/pchinese/dictation/api/DictationController.java.
-- [ ] T011 [US1] Implement typed Dictation client, in-player answer form and score/general-guidance UI without expected-answer or character analysis in frontend/src/api/dictation.ts and frontend/src/features/dictation/DictationPanel.tsx.
+- [ ] T011 [US1] Implement contract-bound Dictation client, in-player answer form and score/general-guidance UI without expected-answer or character analysis in frontend/src/api/dictation.js and frontend/src/features/dictation/DictationPanel.jsx.
 
 ## Phase 4: User Story 2 - Review owned attempts (Priority: P2)
 
@@ -41,11 +41,11 @@ description: "Actionable implementation tasks for F07 Dictation Practice"
 - [ ] T012 [P] [US2] Add owned-history, filter and no-ADMIN-bypass integration tests in backend/src/test/java/net/pchinese/dictation/DictationHistoryControllerIT.java.
 - [ ] T013 [US2] Implement paginated owner-only attempt history query in backend/src/main/java/net/pchinese/dictation/application/DictationHistoryService.java.
 - [ ] T014 [US2] Implement list/detail attempt endpoints in backend/src/main/java/net/pchinese/dictation/api/DictationHistoryController.java.
-- [ ] T015 [US2] Implement owned attempt-history panel and retry entry point in frontend/src/features/dictation/DictationHistoryPanel.tsx.
+- [ ] T015 [US2] Implement owned attempt-history panel and retry entry point in frontend/src/features/dictation/DictationHistoryPanel.jsx.
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 
-- [ ] T016 [P] Add in-player Dictation retake and locked-segment E2E coverage in frontend/e2e/f07-dictation.spec.ts.
+- [ ] T016 [P] Add in-player Dictation retake and locked-segment E2E coverage in frontend/e2e/f07-dictation.spec.js.
 - [ ] T017 Verify no F07 code imports ai-service or F03 allowance services using backend/src/main/java/net/pchinese/dictation/ and run specs/F07-dictation-practice/quickstart.md.
 
 ## Dependencies and Execution Order
@@ -63,4 +63,3 @@ description: "Actionable implementation tasks for F07 Dictation Practice"
 ## Implementation Strategy
 
 Deliver the in-player deterministic evaluation first. Add history only after retry/retake idempotency and the exact binary score policy are fully covered.
-

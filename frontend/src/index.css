@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Default Theme: Dark Pink (Hồng tối) */
+  :root, [data-theme="dark-pink"] {
+    --colors-background: 330 40% 5%;
+    --colors-foreground: 330 20% 98%;
+    --colors-card: 330 40% 8%;
+    --colors-popover: 330 40% 8%;
+    --colors-primary: 330 80% 60%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 330 20% 15%;
+    --colors-secondary-foreground: 330 20% 98%;
+    --colors-muted: 330 30% 15%;
+    --colors-muted-foreground: 330 10% 65%;
+    --colors-accent: 330 30% 15%;
+    --colors-border: 330 20% 15%;
+    --colors-input: 330 20% 15%;
+    --colors-ring: 330 80% 60%;
+    --colors-success: 152 55% 38%;
+    --colors-warning: 38 85% 45%;
+    --colors-info: 210 75% 50%;
+    --colors-destructive: 0 63% 50%;
+    --font-hanzi: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  }
+
+  /* Theme: Dark (Tối) */
+  [data-theme="dark"] {
+    --colors-background: 220 20% 6%;
+    --colors-foreground: 220 10% 98%;
+    --colors-card: 220 20% 9%;
+    --colors-popover: 220 20% 9%;
+    --colors-primary: 220 80% 60%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 220 20% 16%;
+    --colors-secondary-foreground: 220 10% 98%;
+    --colors-muted: 220 20% 16%;
+    --colors-muted-foreground: 220 10% 65%;
+    --colors-accent: 220 20% 16%;
+    --colors-border: 220 20% 16%;
+    --colors-input: 220 20% 16%;
+    --colors-ring: 220 80% 60%;
+  }
+
+  /* Theme: Light (Sáng) */
+  [data-theme="light"] {
+    --colors-background: 0 0% 98%;
+    --colors-foreground: 330 40% 5%;
+    --colors-card: 0 0% 100%;
+    --colors-popover: 0 0% 100%;
+    --colors-primary: 330 80% 50%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 330 20% 92%;
+    --colors-secondary-foreground: 330 40% 10%;
+    --colors-muted: 330 10% 92%;
+    --colors-muted-foreground: 330 10% 40%;
+    --colors-accent: 330 20% 92%;
+    --colors-border: 330 10% 85%;
+    --colors-input: 330 10% 85%;
+    --colors-ring: 330 80% 50%;
+  }
+
+  /* Theme: Purple Dark (Tím tối) */
+  [data-theme="dark-purple"] {
+    --colors-background: 260 40% 6%;
+    --colors-foreground: 260 20% 98%;
+    --colors-card: 260 40% 9%;
+    --colors-popover: 260 40% 9%;
+    --colors-primary: 265 89% 65%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 260 20% 16%;
+    --colors-secondary-foreground: 260 20% 98%;
+    --colors-muted: 260 30% 16%;
+    --colors-muted-foreground: 260 10% 65%;
+    --colors-accent: 260 30% 16%;
+    --colors-border: 260 20% 16%;
+    --colors-input: 260 20% 16%;
+    --colors-ring: 265 89% 65%;
+  }
+
+  /* Theme: Blue Dark (Xanh tối) */
+  [data-theme="dark-blue"] {
+    --colors-background: 220 40% 6%;
+    --colors-foreground: 220 20% 98%;
+    --colors-card: 220 40% 9%;
+    --colors-popover: 220 40% 9%;
+    --colors-primary: 220 80% 60%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 220 20% 16%;
+    --colors-secondary-foreground: 220 20% 98%;
+    --colors-muted: 220 30% 16%;
+    --colors-muted-foreground: 220 10% 65%;
+    --colors-accent: 220 30% 16%;
+    --colors-border: 220 20% 16%;
+    --colors-input: 220 20% 16%;
+    --colors-ring: 220 80% 60%;
+  }
+
+  /* Theme: Red Dark (Đỏ tối) */
+  [data-theme="dark-red"] {
+    --colors-background: 0 40% 6%;
+    --colors-foreground: 0 20% 98%;
+    --colors-card: 0 40% 9%;
+    --colors-popover: 0 40% 9%;
+    --colors-primary: 355 78% 62%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 0 20% 16%;
+    --colors-secondary-foreground: 0 20% 98%;
+    --colors-muted: 0 30% 16%;
+    --colors-muted-foreground: 0 10% 65%;
+    --colors-accent: 0 30% 16%;
+    --colors-border: 0 20% 16%;
+    --colors-input: 0 20% 16%;
+    --colors-ring: 355 78% 62%;
+  }
+
+  * {
+    border-color: hsl(var(--colors-border));
+  }
+
+  body {
+    background-color: hsl(var(--colors-background));
+    color: hsl(var(--colors-foreground));
+    font-family: 'Quicksand', 'Inter', sans-serif;
+  }
+}

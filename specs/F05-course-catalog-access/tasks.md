@@ -11,7 +11,7 @@ description: "Actionable implementation tasks for F05 Course Catalog and Access"
 ## Phase 1: Setup
 
 - [ ] T001 Create catalog module packages in backend/src/main/java/net/pchinese/catalog/ and public catalog screens in frontend/src/features/catalog/.
-- [ ] T002 [P] Add visitor and signed-in catalog routes in frontend/src/routes/catalogRoutes.tsx.
+- [ ] T002 [P] Add visitor and signed-in catalog routes in frontend/src/routes/catalogRoutes.jsx.
 
 ## Phase 2: Foundational
 
@@ -29,7 +29,7 @@ description: "Actionable implementation tasks for F05 Course Catalog and Access"
 - [ ] T007 [P] [US1] Add repository tests for title, HSK, unclassified and sort-order queries in backend/src/test/java/net/pchinese/catalog/CatalogRepositoryTest.java.
 - [ ] T008 [US1] Implement published-Free topic/lesson search and summary service in backend/src/main/java/net/pchinese/catalog/application/CatalogService.java.
 - [ ] T009 [US1] Implement public GET topics and lessons endpoints with bounded pagination in backend/src/main/java/net/pchinese/catalog/api/CatalogController.java.
-- [ ] T010 [US1] Implement typed catalog client, search/filter controls, cards and accessible empty/error states in frontend/src/api/catalog.ts and frontend/src/features/catalog/CatalogPage.tsx.
+- [ ] T010 [US1] Implement contract-bound catalog client, search/filter controls, cards and accessible empty/error states in frontend/src/api/catalog.js and frontend/src/features/catalog/CatalogPage.jsx.
 
 ## Phase 4: User Story 2 - Enter a permitted lesson (Priority: P1)
 
@@ -40,12 +40,12 @@ description: "Actionable implementation tasks for F05 Course Catalog and Access"
 - [ ] T011 [P] [US2] Add lesson-detail publication-change and visitor-access integration tests in backend/src/test/java/net/pchinese/catalog/LessonDetailControllerIT.java.
 - [ ] T012 [US2] Implement current-state lesson-detail access decision in backend/src/main/java/net/pchinese/catalog/application/LessonAccessService.java.
 - [ ] T013 [US2] Implement safe lesson detail endpoint and unavailable response in backend/src/main/java/net/pchinese/catalog/api/LessonDetailController.java.
-- [ ] T014 [US2] Implement lesson-detail sign-in handoff, unavailable return and no-playback visitor UI in frontend/src/features/catalog/LessonDetailPage.tsx.
-- [ ] T015 [US2] Add Jest coverage for summary-only visitor detail and recoverable unavailable state in frontend/src/features/catalog/LessonDetailPage.test.tsx.
+- [ ] T014 [US2] Implement lesson-detail sign-in handoff, unavailable return and no-playback visitor UI in frontend/src/features/catalog/LessonDetailPage.jsx.
+- [ ] T015 [US2] Add Jest coverage for summary-only visitor detail and recoverable unavailable state in frontend/src/features/catalog/LessonDetailPage.test.jsx.
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 
-- [ ] T016 [P] Add public catalog and changed-content E2E coverage in frontend/e2e/f05-catalog.spec.ts.
+- [ ] T016 [P] Add public catalog and changed-content E2E coverage in frontend/e2e/f05-catalog.spec.js.
 - [ ] T017 Run F05 quickstart validation and backend/frontend test suites using specs/F05-course-catalog-access/quickstart.md.
 
 ## Dependencies and Execution Order
@@ -63,4 +63,3 @@ description: "Actionable implementation tasks for F05 Course Catalog and Access"
 ## Implementation Strategy
 
 Release public discovery first, then add safe lesson-detail handoff. Do not add playback, practice, Premium prompts or private learner data to this feature.
-

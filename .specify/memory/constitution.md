@@ -1,9 +1,9 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 -> 1.1.0
-- Modified principles: II. Fixed Architecture and Server Authority; III. Security, Privacy and
-  Data Integrity; V. Testable Quality and Accessible Learning Experience.
-- Added sections: AI Service constraints in Layer-Specific Constraints.
+ - Version change: 1.1.0 -> 2.0.0
+ - Modified principles: I. Canonical Contracts and Layer Boundaries; II. Fixed Architecture and
+   Server Authority; V. Testable Quality and Accessible Learning Experience.
+ - Added sections: Frontend JavaScript/JSX file-extension convention.
 - Removed sections: none.
 - Follow-up TODOs: none.
 -->
@@ -23,14 +23,14 @@ Sync Impact Report
 
 Every Spec Kit artifact MUST identify the affected layer and comply with the root constitution,
 `AGENT.md`, `CLAUDE.md`, the relevant feature specification and the relevant layer contract.
-Frontend owns presentation, accessibility and typed API consumption. Backend owns business rules,
+Frontend owns presentation, accessibility and contract-bound API consumption. Backend owns business rules,
 authorization, transactions, persistence and provider integrations. A full-stack feature MUST
 apply both layer contracts. No plan or task may move a responsibility across that boundary merely
 to simplify implementation.
 
 ### II. Fixed Architecture and Server Authority
 
-Pchinese MUST remain a React 18 + TypeScript + Vite SPA and a Spring Boot 3.4.5 + Java 21 modular
+Pchinese MUST remain a React 18 + JavaScript/JSX + Vite SPA and a Spring Boot 3.4.5 + Java 21 modular
 monolith backed by PostgreSQL 18. Persistence MUST use Spring Data JPA repositories; application
 raw SQL is prohibited. The sole approved supporting-service exception is a private Node.js +
 TypeScript Mastra `ai-service`, introduced only by an approved AI feature specification. It MAY
@@ -86,9 +86,10 @@ both happy and error paths. Provider adapters MUST be mocked outside controlled 
 features MUST test the typed Spring Boot <-> `ai-service` contract, schema-validate agent output
 before persistence, and cover quota reservation, idempotent retry and safe provider failures.
 
-Frontend work MUST use TypeScript strict mode without `any`, typed API clients and the semantic
-design tokens in `frontend/DESIGN.md`. It MUST support keyboard navigation, focus visibility,
-WCAG AA contrast, responsive touch targets and loading, empty and recoverable error states.
+Frontend work MUST use `.jsx` for files that render JSX and `.js` for all other frontend code. It
+MUST use contract-bound API clients and the semantic design tokens in `frontend/DESIGN.md`, while
+supporting keyboard navigation, focus visibility, WCAG AA contrast, responsive touch targets and
+loading, empty and recoverable error states.
 
 ## Layer-Specific Constraints
 
@@ -96,7 +97,7 @@ WCAG AA contrast, responsive touch targets and loading, empty and recoverable er
 
 - Read and obey `frontend/AGENT.md`, `frontend/CLAUDE.md`, `frontend/CONSTITUTION.md` and
   `frontend/DESIGN.md` before planning frontend work.
-- Use React components, typed clients in `src/api/` and semantic theme tokens. Do not use `any`,
+- Use `.jsx` React components, `.js` clients in `src/api/` and semantic theme tokens. Do not use
   hard-coded theme colours, direct provider calls or browser storage for access/refresh tokens.
 - Client validation and route guards improve usability only; backend errors and decisions remain
   authoritative.
@@ -151,4 +152,4 @@ uses semantic versioning: MAJOR for incompatible governance redefinition or remo
 new principle or material obligation, and PATCH for non-semantic clarification. Every plan, task
 set, implementation review and migration review MUST verify compliance with the applicable rules.
 
-**Version**: 1.1.0 | **Ratified**: 2026-09-03 | **Last Amended**: 2026-09-05
+**Version**: 2.0.0 | **Ratified**: 2026-09-03 | **Last Amended**: 2026-09-06

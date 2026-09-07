@@ -10,8 +10,8 @@ content/media decisions; public catalog reads remain safe published-Free project
 
 ## Technical Context
 
-**Language/Version**: Java 21/Spring Boot 3.4.5; React 18/TypeScript strict  
-**Dependencies**: Spring Data JPA, Flyway, Jakarta Validation, approved media adapter; typed API/Jest  
+**Language/Version**: Java 21/Spring Boot 3.4.5; React 18/JavaScript/JSX
+**Dependencies**: Spring Data JPA, Flyway, Jakarta Validation, approved media adapter; contract-bound API client/Jest
 **Storage**: topics, lessons, segments, media_assets and approved content-audit extension  
 **Testing**: JUnit/Mockito, integration/migration, Jest/E2E  
 **Scope**: Content/Media admin commands and projections; excludes learner data, plan/quota, Premium
