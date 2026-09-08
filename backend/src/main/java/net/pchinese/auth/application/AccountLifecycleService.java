@@ -65,7 +65,8 @@ public class AccountLifecycleService {
         if (user.isActiveVerified()) throw ApiException.conflict("The verification credential cannot be used.");
         Instant now = Instant.now();
         user.activate(now); token.consume(now);
-        audit.record("EMAIL_VERIFIED", user.getUserId(), user.getUserId(), null, null, null, audit.details("ACCEPTED"), now);
+        audit.record(AuditEventTaxonomy.EventType.EMAIL_VERIFIED, user.getUserId(), user.getUserId(), null, null, null,
+                audit.details(AuditEventTaxonomy.OutcomeCode.SUCCESS), now);
     }
 
     @Transactional
@@ -86,7 +87,8 @@ public class AccountLifecycleService {
         user.replacePassword(passwordEncoder.encode(newPassword), now);
         token.consume(now);
         sessions.revokeAllForUser(user.getUserId(), "PASSWORD_RESET", now);
-        audit.record("PASSWORD_RESET", user.getUserId(), user.getUserId(), null, null, null, audit.details("ACCEPTED"), now);
+        audit.record(AuditEventTaxonomy.EventType.PASSWORD_RESET, user.getUserId(), user.getUserId(), null, null, null,
+                audit.details(AuditEventTaxonomy.OutcomeCode.SUCCESS), now);
     }
 
     private AuthActionTokenEntity usableToken(String rawToken, ActionTokenPurpose purpose) {

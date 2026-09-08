@@ -1,4 +1,4 @@
-import { httpClient, generateUUID } from './http.js';
+import { httpClient, refreshAccessSession } from './http.js';
 import { apiUrl } from './apiUrl.js';
 import { authSessionStore } from '../features/auth/authSessionStore.js';
 
@@ -58,6 +58,8 @@ export const authApi = {
       authSessionStore.setSession({
         accessToken: response.data.accessToken,
         expiresAt: response.data.expiresAt,
+        roles: response.data.roles,
+        browserSessionId: response.data.browserSessionId,
       });
     }
 
@@ -65,26 +67,11 @@ export const authApi = {
   },
 
   /**
-   * Manual refresh token request with X-Refresh-Request-Id header.
+   * Restore a memory-only access session from the browser's HttpOnly refresh
+   * cookie. The HTTP layer makes this single-flight with automatic refreshes.
    */
   async refresh() {
-    const refreshRequestId = generateUUID();
-    const response = await httpClient(apiUrl('/auth/refresh'), {
-      method: 'POST',
-      headers: {
-        'X-Refresh-Request-Id': refreshRequestId,
-      },
-      skipAuth: true,
-    });
-
-    if (response && response.success && response.data) {
-      authSessionStore.setSession({
-        accessToken: response.data.accessToken,
-        expiresAt: response.data.expiresAt,
-      });
-    }
-
-    return response;
+    return refreshAccessSession();
   },
 
   /**

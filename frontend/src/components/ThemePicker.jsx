@@ -57,7 +57,7 @@ export function ThemePicker({ currentTheme, onSelectTheme, variant = 'full' }) {
           <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setOpen(false); }} />
           <div
             className={`absolute bottom-11 z-50 p-2 bg-popover border border-border rounded-xl shadow-2xl animate-in fade-in zoom-in-95 space-y-1 ${
-              variant === 'icon' ? 'right-[-20px] w-48' : 'right-0 w-52'
+              variant === 'icon' ? '-left-[100px] w-52' : 'right-0 w-52'
             }`}
             data-testid="theme-picker-menu"
           >

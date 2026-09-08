@@ -18,10 +18,32 @@ export function generateUUID() {
 /**
  * Gets CSRF token from document.cookie if set by backend.
  */
-function getCsrfToken() {
+function cookieValue(name) {
   if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(new RegExp('(^| )XSRF-TOKEN=([^;]+)'));
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = document.cookie.match(new RegExp(`(^| )${escapedName}=([^;]+)`));
   return match ? decodeURIComponent(match[2]) : null;
+}
+
+function getCsrfToken() {
+  const browserSessionId = authSessionStore.getBrowserSessionId();
+  if (browserSessionId) {
+    return cookieValue(`XSRF-TOKEN-${browserSessionId}`);
+  }
+  if (typeof document === 'undefined') return null;
+  const namedTokens = document.cookie.split(';').map((value) => value.trim())
+    .filter((value) => value.startsWith('XSRF-TOKEN-'));
+  if (namedTokens.length === 1) {
+    return decodeURIComponent(namedTokens[0].substring(namedTokens[0].indexOf('=') + 1));
+  }
+  return cookieValue('XSRF-TOKEN');
+}
+
+function applyBrowserSessionHeader(headers) {
+  const browserSessionId = authSessionStore.getBrowserSessionId();
+  if (browserSessionId) {
+    headers['X-Browser-Session-Id'] = browserSessionId;
+  }
 }
 
 let refreshPromise = null;
@@ -42,6 +64,7 @@ async function performSingleFlightRefresh() {
         'Content-Type': 'application/json',
         'X-Refresh-Request-Id': refreshRequestId,
       };
+      applyBrowserSessionHeader(headers);
 
       const csrfToken = getCsrfToken();
       if (csrfToken) {
@@ -60,8 +83,10 @@ async function performSingleFlightRefresh() {
         authSessionStore.setSession({
           accessToken: body.data.accessToken,
           expiresAt: body.data.expiresAt,
+          roles: body.data.roles,
+          browserSessionId: body.data.browserSessionId,
         });
-        return body.data;
+        return body;
       } else {
         authSessionStore.clearSession();
         const err = new Error(body?.error?.message || 'Refresh failed');
@@ -75,6 +100,17 @@ async function performSingleFlightRefresh() {
   })();
 
   return refreshPromise;
+}
+
+/**
+ * Restores the memory-only access session from the HttpOnly refresh cookie.
+ *
+ * This is deliberately shared with the 401 interceptor: React Strict Mode can
+ * run startup effects twice in development, and concurrent refreshes with
+ * different request IDs would otherwise be treated as refresh-token reuse.
+ */
+export function refreshAccessSession() {
+  return performSingleFlightRefresh();
 }
 
 /**
@@ -94,6 +130,7 @@ export async function httpClient(url, options = {}) {
     'Content-Type': 'application/json',
     ...customHeaders,
   };
+  applyBrowserSessionHeader(headers);
 
   const token = authSessionStore.getAccessToken();
   if (!skipAuth && token) {
@@ -146,7 +183,7 @@ export async function httpClient(url, options = {}) {
     !skipAuth
   ) {
     try {
-      await performSingleFlightRefresh();
+      await refreshAccessSession();
       // Retry original request once with new token
       return httpClient(url, { ...options, _isRetry: true });
     } catch (refreshErr) {

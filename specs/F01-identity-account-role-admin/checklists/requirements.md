@@ -36,3 +36,5 @@
   state changes, failure cases, API impact, acceptance-test basis, and non-goals to `spec.md`.
 - Revalidated on 2026-09-06 after limiting audit reasons in SC-002 to lock/unlock actions, as
   specified by FR-008 and SC-006.
+- Revalidated on 2026-09-08 after explicitly permitting the display-only `accountName` required
+  for User Management while retaining the ban on email, searchable profile data and learner data.

@@ -120,9 +120,11 @@
     border-color: hsl(var(--colors-border));
   }
 
-  body {
+  html, body {
     background-color: hsl(var(--colors-background));
     color: hsl(var(--colors-foreground));
     font-family: 'Quicksand', 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
   }
 }

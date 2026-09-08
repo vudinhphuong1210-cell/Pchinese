@@ -6,6 +6,7 @@ import { adminUsersApi } from '../../api/adminUsers.js';
 
 jest.mock('../../api/adminUsers.js', () => ({
   adminUsersApi: {
+    listManagedUsers: jest.fn(),
     getAccountRoleProjection: jest.fn(),
     grantAdminRole: jest.fn(),
     revokeAdminRole: jest.fn(),
@@ -14,134 +15,90 @@ jest.mock('../../api/adminUsers.js', () => ({
   },
 }));
 
-describe('F01 Admin Account/Roles UI Security & Contract Tests (T021)', () => {
+describe('F01 User Management UI security and contract tests', () => {
   const targetUUID = '550e8400-e29b-41d4-a716-446655440000';
+
+  const directoryResponse = {
+    success: true,
+    data: {
+      items: [{ userId: targetUUID, accountName: 'Học viên Demo', accountState: 'ACTIVE', roles: ['ADMIN'] }],
+      page: 0,
+      size: 20,
+      totalItems: 21,
+      totalPages: 2,
+    },
+  };
+
+  const projection = {
+    success: true,
+    data: { userId: targetUUID, accountName: 'Học viên Demo', roles: ['ADMIN'], accessState: 'ACTIVE' },
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
+    adminUsersApi.listManagedUsers.mockResolvedValue(directoryResponse);
   });
 
-  test('Guards against directory/private-learning-data paths by requiring exact UUID input', async () => {
-    adminUsersApi.getAccountRoleProjection.mockResolvedValueOnce({
-      success: true,
-      data: {
-        userId: targetUUID,
-        roles: ['ADMIN'],
-        accessState: 'ACTIVE',
-      },
-    });
-
-    render(<AccountRolesTab />);
-
-    // Verify there is NO email search input, NO student name field, NO directory autocomplete
-    expect(screen.queryByPlaceholderText(/email/i)).toBeNull();
-    expect(screen.queryByPlaceholderText(/tên học viên/i)).toBeNull();
-    expect(screen.queryByTestId('user-directory-list')).toBeNull();
-
-    // Fill in exact UUID
-    fireEvent.change(screen.getByTestId('user-id-input'), {
-      target: { value: targetUUID },
-    });
-
-    fireEvent.click(screen.getByTestId('lookup-btn'));
-
-    await waitFor(() => expect(adminUsersApi.getAccountRoleProjection).toHaveBeenCalledWith(targetUUID));
-
-    expect(screen.getByTestId('projection-card')).toBeInTheDocument();
-    expect(screen.getByTestId('access-state-badge')).toHaveTextContent('ACTIVE');
-    expect(screen.getByTestId('role-badge-ADMIN')).toBeInTheDocument();
-  });
-
-  test('Enforces reason and note constraints on Lock account dialog', async () => {
-    adminUsersApi.getAccountRoleProjection.mockResolvedValueOnce({
-      success: true,
-      data: {
-        userId: targetUUID,
-        roles: [],
-        accessState: 'ACTIVE',
-      },
-    });
-
-    render(<AccountRolesTab />);
-
-    fireEvent.change(screen.getByTestId('user-id-input'), {
-      target: { value: targetUUID },
-    });
-    fireEvent.click(screen.getByTestId('lookup-btn'));
-
+  async function selectTarget() {
+    adminUsersApi.getAccountRoleProjection.mockResolvedValue(projection);
+    fireEvent.click(await screen.findByTestId(`manage-user-${targetUUID}`));
     await screen.findByTestId('projection-card');
+  }
 
-    // Click Lock Account
+  test('loads a paginated safe user list without an Exact-ID input or private fields', async () => {
+    render(<AccountRolesTab />);
+
+    expect(await screen.findByTestId('user-directory-list')).toBeInTheDocument();
+    expect(adminUsersApi.listManagedUsers).toHaveBeenCalledWith({ page: 0, size: 20 });
+    expect(screen.getByTestId(`user-row-${targetUUID}`)).toHaveTextContent(targetUUID);
+    expect(screen.getByTestId(`user-row-${targetUUID}`)).toHaveTextContent('Học viên Demo');
+    expect(screen.getByTestId(`user-row-${targetUUID}`)).toHaveTextContent('ACTIVE');
+    expect(screen.getByTestId(`user-row-${targetUUID}`)).toHaveTextContent('ADMIN');
+    expect(screen.queryByTestId('user-id-input')).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/email/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/hồ sơ|profile/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('next-page-btn'));
+    await waitFor(() => expect(adminUsersApi.listManagedUsers).toHaveBeenLastCalledWith({ page: 1, size: 20 }));
+  });
+
+  test('enforces reason and note constraints on the selected user lock dialog', async () => {
+    render(<AccountRolesTab />);
+    await selectTarget();
+
+    expect(screen.getByTestId('selected-account-name')).toHaveTextContent('Học viên Demo');
+
     fireEvent.click(screen.getByTestId('lock-account-btn'));
-
-    // Select OTHER reason
-    fireEvent.change(screen.getByTestId('reason-select'), {
-      target: { value: 'OTHER' },
-    });
-
-    // Try to confirm without note
+    fireEvent.change(screen.getByTestId('reason-select'), { target: { value: 'OTHER' } });
     fireEvent.click(screen.getByTestId('confirm-dialog-btn'));
 
-    expect(await screen.findByTestId('admin-error')).toHaveTextContent(
-      'Lý do OTHER yêu cầu phải có ghi chú chi tiết.'
-    );
+    expect(await screen.findByTestId('admin-error')).toHaveTextContent('OTHER');
 
-    // Provide note and submit
     adminUsersApi.lockAccount.mockResolvedValueOnce({
       success: true,
-      data: {
-        userId: targetUUID,
-        roles: [],
-        accessState: 'LOCKED',
-      },
+      data: { userId: targetUUID, roles: [], accessState: 'LOCKED' },
     });
-
-    fireEvent.change(screen.getByTestId('note-input'), {
-      target: { value: 'Khóa tài khoản do nghi ngờ vi phạm an toàn.' },
-    });
-
+    fireEvent.change(screen.getByTestId('note-input'), { target: { value: 'Security review' } });
     fireEvent.click(screen.getByTestId('confirm-dialog-btn'));
 
-    await waitFor(() => {
-      expect(adminUsersApi.lockAccount).toHaveBeenCalledWith(targetUUID, {
-        reason: 'OTHER',
-        note: 'Khóa tài khoản do nghi ngờ vi phạm an toàn.',
-      });
-    });
-
+    await waitFor(() => expect(adminUsersApi.lockAccount).toHaveBeenCalledWith(targetUUID, {
+      reason: 'OTHER',
+      note: 'Security review',
+    }));
     expect(screen.getByTestId('access-state-badge')).toHaveTextContent('LOCKED');
   });
 
-  test('Handles 409 STATE_CONFLICT cleanly and reloads projection', async () => {
-    adminUsersApi.getAccountRoleProjection.mockResolvedValue({
-      success: true,
-      data: {
-        userId: targetUUID,
-        roles: ['ADMIN'],
-        accessState: 'ACTIVE',
-      },
-    });
+  test('handles a selected-user 409 conflict and reloads only that projection', async () => {
+    render(<AccountRolesTab />);
+    await selectTarget();
 
     adminUsersApi.revokeAdminRole.mockRejectedValueOnce({
-      error: {
-        code: 'STATE_CONFLICT',
-        message: 'Không thể thu hồi quyền ADMIN từ ADMIN cuối cùng trong hệ thống.',
-      },
+      error: { code: 'STATE_CONFLICT', message: 'The protected transition is not allowed.' },
     });
-
-    render(<AccountRolesTab />);
-
-    fireEvent.change(screen.getByTestId('user-id-input'), {
-      target: { value: targetUUID },
-    });
-    fireEvent.click(screen.getByTestId('lookup-btn'));
-
-    await screen.findByTestId('projection-card');
-
-    // Attempt revoke admin
     fireEvent.click(screen.getByTestId('revoke-admin-btn'));
     fireEvent.click(screen.getByTestId('confirm-dialog-btn'));
 
     expect(await screen.findByTestId('admin-error')).toHaveTextContent('STATE_CONFLICT');
+    expect(adminUsersApi.getAccountRoleProjection).toHaveBeenCalledWith(targetUUID);
   });
 });

@@ -12,8 +12,18 @@
 
 ### Session 2026-09-05
 
-- Q: Trong tab Account/Roles, Admin sẽ chọn đúng tài khoản cần quản lý bằng cách nào mà không duyệt dữ liệu riêng tư của learner? → A: Nhập chính xác mã tài khoản; chỉ thấy role và trạng thái access.
+- Q: Trong tab quản trị người dùng, Admin chọn tài khoản cần quản lý bằng cách nào mà không duyệt dữ liệu riêng tư của learner? → A: Dùng danh sách phân trang chỉ chứa UUID, trạng thái vòng đời và role `ADMIN`; không tìm theo email/tên, không hiện profile hay dữ liệu học tập.
 - Q: Khi Admin khóa hoặc mở khóa account, lý do audit sẽ được ghi theo cách nào? → A: Chọn lý do chuẩn; `OTHER` yêu cầu ghi chú ngắn.
+
+### Session 2026-09-08
+
+- Q: Trong User Management, tên tài khoản không được là UUID thì hiển thị gì? → A: Hiển thị
+  `accountName`, là tên do chủ tài khoản đã đặt và được backend giải mã từ giá trị mã hóa. Khi tên
+  chưa có, hiển thị “Chưa đặt tên”; UUID chỉ là mã đối soát phụ, không phải tên tài khoản.
+
+### Session 2026-09-09
+
+- Q: Có thể đăng nhập nhiều tài khoản trong cùng một trình duyệt mà không lưu token trong browser storage không? → A: Có. Mỗi tab giữ một mã chọn phiên không phải credential trong `sessionStorage`; refresh token và CSRF token vẫn chỉ nằm trong các cookie riêng, HttpOnly (đối với refresh), được đặt tên theo phiên. Các tab có thể dùng các tài khoản khác nhau đồng thời; đăng xuất một tab không tác động phiên của tab khác.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -33,19 +43,21 @@ accessing another account.
    **Then** they can sign in and receive an active account.
 2. **Given** a lost credential or suspicious session, **When** the learner uses recovery or logout,
    **Then** the affected access is ended without revealing another account's data.
+3. **Given** a learner is signed in in one browser tab, **When** they open the supplied “Đăng nhập tài khoản khác” entry point and sign in with another verified account, **Then** both tabs retain their own account across refresh and page reload, and signing out one does not end the other.
 
 ---
 
 ### User Story 2 - Administer roles and account access (Priority: P1)
 
-As an authorized administrator, I want to grant or revoke `ADMIN` and lock or unlock another
-account selected by its exact account identifier so that permitted administrative access is
-controlled without exposing learning data.
+As an authorized administrator, I want to view a paginated safe list of accounts, then grant or
+revoke `ADMIN` and lock or unlock another account so that permitted administrative access is
+controlled without exposing learner-private data.
 
 **Why this priority**: The MVP Admin dashboard requires controlled account operations from day one.
 
-**Independent Test**: An administrator changes an eligible target's role or access state and the
-operation is audited; a non-administrator and prohibited self/final-admin action are rejected.
+**Independent Test**: An administrator sees only safe account summaries, changes an eligible
+target's role or access state and the operation is audited; a non-administrator and prohibited
+self/final-admin action are rejected.
 
 **Acceptance Scenarios**:
 
@@ -53,6 +65,8 @@ operation is audited; a non-administrator and prohibited self/final-admin action
    access state, **Then** the new state takes effect and is auditable.
 2. **Given** an administrator attempts a self-change or to disable the final active administrator,
    **When** the action is submitted, **Then** it is rejected without changing any state.
+3. **Given** an authorized administrator opens User Management, **When** the account list loads,
+   **Then** it is paginated and shows the permitted account name, account UUID, lifecycle state and current `ADMIN` role.
 
 ---
 
@@ -60,12 +74,12 @@ operation is audited; a non-administrator and prohibited self/final-admin action
 
 - Duplicate registration or a reused/expired verification or recovery request does not disclose
   whether another account exists.
-- An invalid, unavailable, or unmanageable account identifier returns a safe result without exposing
-  profile, learning, or account-existence data.
+- A non-admin cannot obtain the account list or any listed account's protected management projection.
 - An administrator selects `OTHER` without a short safe note: the lock/unlock action is rejected
   without changing the target's account or session state.
 - A locked account cannot use an existing session or create a new one; unlock requires a new sign-in.
 - Role or account-status changes end affected access and preserve learner-private data.
+- A refresh request with a missing, malformed, mismatched, expired, revoked, or reused per-tab session selection fails safely and cannot select another account's refresh credential.
 
 ## Feature Boundaries and Governance
 
@@ -73,9 +87,8 @@ operation is audited; a non-administrator and prohibited self/final-admin action
 
 - **Learner**: starts registration, verifies an account, signs in, requests credential recovery, or
   signs out through the account-access experience.
-- **Authorized administrator**: enters the Account/Roles tab with an exact account identifier to
-  inspect the permitted minimal projection or request a role/access-state change for another
-  account.
+- **Authorized administrator**: opens the User Management tab to inspect a paginated minimal account
+  directory and request a role/access-state change for another account.
 - **Unauthenticated, locked, or unauthorized actor**: receives a safe failure result and cannot
   obtain target-account information or perform a protected action.
 
@@ -97,8 +110,8 @@ operation is audited; a non-administrator and prohibited self/final-admin action
   administrator requests follow the safe outcomes in the acceptance scenarios and edge cases;
   they do not disclose account existence or learner-private data, and they do not partially change
   account, role, or session state.
-- This feature adds account-lifecycle and sign-out operations for learners, plus protected
-  exact-identifier Account/Roles operations for administrators. Their responses expose only the
+- This feature adds account-lifecycle and sign-out operations for learners, plus a protected,
+  paginated User Management directory and account/role operations for administrators. Their responses expose only the
   information permitted by this specification and do not change the learning, entitlement, quota,
   or learner-data administration interfaces.
 
@@ -106,12 +119,12 @@ operation is audited; a non-administrator and prohibited self/final-admin action
 
 - The independent tests and acceptance scenarios for User Stories 1 and 2, together with the edge
   cases above, are the acceptance test basis. They cover neutral account recovery, current-state
-  authorization, exact-ID-only administration, audit
+  authorization, safe directory administration, audit
   evidence, safe validation failures, and self/final-administrator rejection.
 
 ### Non-goals
 
-- Account browsing; search by learner name, email, profile, or learning record.
+- Search by learner name or email, and any profile or learning-record browsing.
 - Viewing or changing a learner's attempts, recordings, chats, vocabulary, progress, Premium
   entitlement, or AI quota.
 - Public creation of an `ADMIN` account, profile preferences, self-service device/session management, or any
@@ -132,12 +145,15 @@ operation is audited; a non-administrator and prohibited self/final-admin action
   final active administrator.
 - **FR-006**: Account and role administration MUST NOT expose or change a learner's attempts,
   recordings, chats, vocabulary, progress, Premium entitlement, or AI quota.
-- **FR-007**: The Account/Roles tab MUST require an exact account identifier and show only the
-  target's permitted role and lock/unlock state; it MUST NOT offer account browsing, profile views,
-  or learner-data search.
+- **FR-007**: The User Management tab MUST provide authorized administrators a paginated account
+  directory with the permitted `accountName`, account UUID, lifecycle state and current `ADMIN`
+  role. `accountName` MUST be the name the account owner set, or the neutral value “Chưa đặt tên”
+  when absent. It MUST NOT return or search email, other profile fields, session, entitlement,
+  quota or learner-learning data.
 - **FR-008**: Lock and unlock actions MUST record one standard reason (`SECURITY`, `POLICY`,
   `USER_REQUEST`, or `OTHER`); `OTHER` MUST include a short safe note and no reason may contain
   learner-private content.
+- **FR-009**: A learner MUST be able to keep more than one verified account signed in within one browser profile by using separate browser tabs. Each tab MUST bind refresh and logout only to its selected server session. Raw refresh credentials and access JWTs MUST NOT be stored in localStorage, sessionStorage, IndexedDB, URL parameters, or response logs. A per-tab, non-credential session selector MAY be retained only in sessionStorage to route the tab to its corresponding HttpOnly refresh cookie.
 
 ### Key Entities
 
@@ -147,8 +163,9 @@ operation is audited; a non-administrator and prohibited self/final-admin action
 - **Security audit event**: immutable evidence of an account or role-sensitive action.
 - **Account access reason**: a standard non-sensitive reason, with a short safe note only for
   `OTHER`, attached to a lock or unlock audit event.
-- **Account management projection**: the minimal role and access-state result returned after an
-  exact authorized account identifier is supplied.
+- **Account management projection**: the permitted account name, account UUID, lifecycle state and
+  `ADMIN` role summary shown in the paginated directory and after an authorized account command.
+- **Browser session selector**: a non-credential server-session reference used only by one browser tab to select its corresponding cookie pair; it cannot authenticate by itself.
 
 ## Success Criteria *(mandatory)*
 
@@ -161,18 +178,21 @@ operation is audited; a non-administrator and prohibited self/final-admin action
 - **SC-003**: A learner can complete account registration, verification, and first sign-in in under
   5 minutes under normal conditions.
 - **SC-004**: No administrator action in this feature reveals learner-private learning data.
-- **SC-005**: 100% of Account/Roles lookups require an exact account identifier and return no
-  profile or learner-data fields beyond the permitted role/access-state result.
+- **SC-005**: 100% of User Management directory responses include the owner-set `accountName` (or
+  “Chưa đặt tên”) and exclude email, other profile fields, session, entitlement, quota and
+  learner-learning data.
 - **SC-006**: 100% of lock/unlock audit events contain a valid standard reason; every `OTHER` event
   contains a short safe note.
+- **SC-007**: Two verified accounts can remain usable in separate tabs of one browser profile through one access-token refresh and one page reload per tab; logging out either account leaves the other account's session usable.
 
 ## Assumptions
 
 - F00 is complete and this feature is the first learner/account behaviour in MVP.
-- The MVP Admin dashboard Account/Roles tab is limited to the role and account-status operations
-  defined here.
-- Administrators receive an exact account identifier through a separate approved administrative
-  process; the dashboard does not provide account browsing or learner lookup.
+- The supported same-browser experience is concurrent accounts in separate tabs. The application provides an explicit entry point that opens a fresh tab for an additional account; it does not add a cross-account profile directory or share access tokens between tabs.
+- The MVP Admin dashboard User Management tab is limited to the safe directory, role and account-status
+  operations defined here.
+- The directory is server-paginated and has no email/name/profile search. It displays only the
+  permitted `accountName` alongside the minimum account-management state, not a profile view.
 - Audit reasons use only the four standard categories above; any `OTHER` note is brief and excludes
   credentials, private learning data, and unnecessary personal information.
 - Premium and AI allowance are owned by F03 and are excluded from this feature.

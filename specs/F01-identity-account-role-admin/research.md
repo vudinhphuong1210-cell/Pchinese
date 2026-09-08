@@ -55,18 +55,21 @@ network retries. It is explicitly required by `CLAUDE.md` and `DATA_short.md`.
 - Accept every concurrent refresh — rejected: creates parallel valid refresh tokens.
 - Treat every retry as reuse — rejected: makes normal network failure unsafe for learners.
 
-## Decision 4 — Use exact-ID minimal account-management projections
+## Decision 4 — Use a safe paginated account-management directory
 
-**Decision**: Admin lookup is only `GET /api/v1/users/{userId}/roles` with an exact UUID. The
-response contains permitted ADMIN-role and locked/unlocked state only. Role grant/revoke and
-lock/unlock use dedicated command routes; no list/search/autocomplete is exposed.
+**Decision**: Admin can call `GET /api/v1/users` for a server-paginated directory containing only
+the permitted `accountName`, account UUID, lifecycle state and active ADMIN role. `accountName` is
+derived server-side from the encrypted owner-set display name and uses “Chưa đặt tên” when absent.
+Role grant/revoke and lock/unlock retain their dedicated command routes. The directory has no
+email/name/profile search or profile-detail view.
 
-**Rationale**: F01 and the MVP map prohibit Admin private-data browsing while still requiring the
-Account/Roles tab. A safe 404 prevents account-existence disclosure for invalid/unmanageable IDs.
+**Rationale**: F01 needs an identifiable account-management entry point while `DATA_short.md`
+encrypts email and F02 owns profile preference updates. Returning one deliberately approved,
+server-derived account label supports selection without exposing email or additional learner data.
 
 **Alternatives considered**:
 
-- User directory/search by email/name — rejected: violates F01 FR-007 and leaks account metadata.
+- User directory/search by email or account name — rejected: email remains encrypted, and account names are display-only; neither field is searchable.
 - Returning profile or learning summaries with the role projection — rejected: violates F01 FR-006.
 
 ## Decision 5 — Serialize sensitive role and account-state changes
@@ -130,3 +133,22 @@ F02 owns profile preferences; F03 owns automatic Free entitlement/quota.
 - Add entitlement records during registration — rejected: duplicates F03 responsibility.
 - Defer every session endpoint to F02 — rejected: F01 must provide secure session lifecycle and
   protected identity foundation for dependent features.
+
+## Decision 9 — Route browser refresh by a non-credential, per-tab session selector
+
+**Decision**: On Web login, create a server session as before but set its refresh and CSRF cookies
+with names derived from the server session UUID. Return that UUID as `browserSessionId`, which the
+client may retain in `sessionStorage` for the current tab only. Refresh and logout require the
+selector and resolve only the matching named cookie. A tab without a selector may recover exactly
+one named cookie for compatibility; it cannot choose when several signed-in accounts exist.
+
+**Rationale**: Cookie names scoped only by domain/path otherwise overwrite the single refresh
+credential for every login. A tab-local non-secret selector supports concurrent accounts without
+persisting raw refresh tokens or access JWTs and keeps logout scoped to the selected session.
+
+**Alternatives considered**:
+
+- Put refresh tokens in localStorage/sessionStorage — rejected: violates the security constitution.
+- Keep one browser-wide active-account cookie — rejected: tabs would still interfere with each other.
+- Add a browser-wide account directory/switcher endpoint — deferred: it expands account discovery
+  and is unnecessary for the supported separate-tab experience.

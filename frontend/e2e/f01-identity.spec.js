@@ -36,17 +36,16 @@ test.describe('F01 End-to-End Identity & Admin Journeys', () => {
     await expect(page.getByTestId('profile-card')).toContainText('Học viên PChinese');
   });
 
-  test('Admin Account/Roles Exact-ID Lookup and State Management Flow', async ({ page }) => {
+  test('Admin User Management list and selected-user state management flow', async ({ page }) => {
     await page.goto('/');
 
     // Navigate to Admin tab
     await page.getByTestId('nav-admin').click();
     await expect(page.getByTestId('account-roles-tab')).toBeVisible();
 
-    // Search target user UUID
-    const targetUUID = '550e8400-e29b-41d4-a716-446655440000';
-    await page.getByTestId('user-id-input').fill(targetUUID);
-    await page.getByTestId('lookup-btn').click();
+    // Select a server-provided safe directory row; there is no manually entered UUID path.
+    await expect(page.getByTestId('user-directory-list')).toBeVisible();
+    await page.getByTestId(/^manage-user-/).first().click();
 
     // Projection card should render
     await expect(page.getByTestId('projection-card')).toBeVisible();

@@ -57,8 +57,8 @@ public class SecurityConfiguration {
     CorsConfigurationSource corsConfigurationSource(PchineseSecurityProperties properties) {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(properties.getAllowedOrigins());
-        config.setAllowedMethods(List.of("GET", "POST", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Refresh-Request-Id", "X-Correlation-Id"));
+        config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Refresh-Request-Id", "X-Browser-Session-Id", "X-Correlation-Id"));
         config.setExposedHeaders(List.of("X-Correlation-Id"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

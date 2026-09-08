@@ -90,7 +90,7 @@ Frontend route guard chỉ phục vụ UX; backend vẫn kiểm tra authenticati
 | `/settings/profile` | ProfileSettingsPage | `GET/PATCH /me` | Authenticated learner |
 | `/settings/sessions` | SessionSettingsPage | auth sessions/logout | Authenticated learner |
 | `/admin/content` | AdminContentPage | topics/lessons/segments/media writes | `ADMIN` UX guard + backend `ADMIN` |
-| `/admin/users` | AdminUsersPage | exact account lookup, role, lock/unlock | `ADMIN` UX guard + backend `ADMIN`; không browse learner |
+| `/admin/users` | AdminUsersPage | safe paginated user management, role, lock/unlock | `ADMIN` UX guard + backend `ADMIN`; no email/profile/learner-data browsing |
 
 Không render URL signed media hoặc provider identifier vào route. Nếu lesson `UNPUBLISHED`/`ARCHIVED`, UI nhận lỗi chuẩn từ backend và không cố dùng cached media URL.
 
@@ -176,13 +176,18 @@ Các endpoint của phần này là `LOCKED` theo `CLAUDE.md`.
 | `auth.register` | `POST /auth/register` | `{ email, password }` | `202`, `{ accepted: true }` | Public; response trung lập, không tiết lộ account tồn tại; `400`, `429`. |
 | `auth.requestEmailVerification` | `POST /auth/email-verifications` | `{ email }` | `202` | Public; không tiết lộ account tồn tại; `400`, `429`. |
 | `auth.confirmEmailVerification` | `POST /auth/email-verifications/confirm` | `{ verificationToken }` | `200`, verified account state | Public; `400`, `409 STATE_CONFLICT`. |
-| `auth.login` | `POST /auth/login` | `{ email, password, deviceId, deviceLabel, platform }` | `200`, access-session result; web nhận refresh cookie | Verified user; `401`, `403`. |
-| `auth.refresh` | `POST /auth/refresh` | Web: cookie + CSRF + `X-Refresh-Request-Id`; Mobile: secure-store token + request ID | `200`, rotated session result | `401 REFRESH_TOKEN_INVALID`; client single-flight. |
+| `auth.login` | `POST /auth/login` | `{ email, password, deviceId, deviceLabel, platform }` | `200`, access-session result kèm các role hiện tại do server xác nhận; web nhận refresh cookie | Verified user; `401`, `403`. |
+| `auth.refresh` | `POST /auth/refresh` | Web: cookie + CSRF + `X-Refresh-Request-Id`; Mobile: secure-store token + request ID | `200`, rotated session result kèm các role hiện tại do server xác nhận | `401 REFRESH_TOKEN_INVALID`; client single-flight. |
 | `auth.logout` | `POST /auth/logout` | Web refresh cookie / mobile refresh credential | `200` | Current session; `401 REFRESH_TOKEN_INVALID`. |
 | `auth.requestPasswordReset` | `POST /auth/password-resets` | `{ email }` | `202` | Public; không lộ account; `400`, `429`. |
 | `auth.confirmPasswordReset` | `POST /auth/password-resets/confirm` | `{ resetToken, newPassword }` | `200` | Public; `400`; thành công revoke mọi sessions. |
 
 **URL đầy đủ ví dụ:** `POST http://localhost:8080/api/v1/auth/login`. Trong code frontend chỉ dùng `api.auth.login`, không dùng URL này trực tiếp.
+
+Web browser supports concurrent accounts in separate tabs. `browserSessionId` is a non-credential,
+per-tab selector sent as `X-Browser-Session-Id`; it routes refresh/logout to the matching named
+cookie pair. It may be retained only in `sessionStorage`. Access JWTs and raw refresh values remain
+outside every browser storage mechanism.
 
 ## 6. Backend endpoint registry — Account và catalog
 
@@ -190,8 +195,9 @@ Các route đánh dấu `MVP` được chuẩn hóa trong file này. Response DT
 
 | API key frontend | Method + backend URL | Request/query | `data` tối thiểu | Access | Status |
 | --- | --- | --- | --- | --- | --- |
-| `me.get` | `GET /me` | — | profile, `profileVersion`, safe current Free entitlement/allowance summary | Current user | MVP |
-| `me.update` | `PATCH /me` | `{ displayName?, nativeLanguageCode?, interfaceLocale?, timeZone?, targetHskLevel?, dailyGoalMinutes?, expectedProfileVersion }` | updated profile + current safe Free entitlement/allowance summary | Current user; stale version returns `409 STATE_CONFLICT` without overwrite | MVP |
+| `me.get` | `GET /me` | — | profile, `profileVersion` | Current user | MVP |
+| `me.update` | `PATCH /me` | `{ displayName?, nativeLanguageCode?, interfaceLocale?, timeZone?, targetHskLevel: 1..6, dailyGoalMinutes: 1..240, expectedProfileVersion }` | updated profile | Current user; stale version returns `409 STATE_CONFLICT` without overwrite | MVP |
+| `admin.auditEvents.list` | `GET /admin/audit-events` | `page` zero-based, `size` 1–50 | system-safe event type/time and permitted actor/target account-name labels + page metadata | `ADMIN` only; learners receive `403`; no UUIDs, audit details, role/session/correlation metadata or profile values | MVP |
 | `topics.list` | `GET /topics` | `query?`, `hskLevel?`, pagination | published topic summaries | Public; title/summary/HSK/duration/published count only | MVP |
 | `topics.getById` | `GET /topics/{topicId}` | Path UUID | topic + permitted lesson summaries | Public | MVP |
 | `lessons.list` | `GET /lessons` | `topicId?`, `query?`, `hskLevel?`, pagination | published Free lesson cards | Public; default admin sort order; no Premium journey in MVP | MVP |
@@ -294,13 +300,14 @@ Hai route sau không có prefix `/api/v1`, không có browser caller và không 
 | `admin.segments.archive` | `POST /segments/{segmentId}/archive` | expectedVersion | `ADMIN`; final, cannot restore/republish | MVP |
 | `admin.media.create` | `POST /media` | multipart file or allowlisted provider metadata, expectedVersion when applicable | `ADMIN`; scan/approval first | MVP |
 | `admin.media.update` | `PATCH /media/{mediaAssetId}` | allowed metadata only, expectedVersion | `ADMIN` | MVP |
-| `admin.accounts.lookup` | `GET /users/{userId}/roles` | exact user UUID | `ADMIN`; chỉ trả minimal role + locked/unlocked projection, không có profile/learner data | MVP |
+| `admin.users.list` | `GET /users?page={page}&size={size}` | zero-based page; `size` 1–50 | `ADMIN`; permitted `accountName`, UUID, lifecycle state and active ADMIN role; no email/other-profile/session/entitlement/quota/learner data | MVP |
+| `admin.accounts.lookup` | `GET /users/{userId}/roles` | selected user UUID | `ADMIN`; permitted `accountName`, UUID, minimal role + locked/unlocked projection; no other profile/learner data | MVP |
 | `admin.users.grantRole` | `POST /users/{userId}/roles` | `{ role: "ADMIN" }` | `ADMIN`; target khác actor; audit + invalidate target sessions | MVP |
 | `admin.users.revokeAdmin` | `DELETE /users/{userId}/roles/ADMIN` | — | `ADMIN`; cấm self/final Admin removal; audit + invalidate target sessions | MVP |
 | `admin.users.lock` | `POST /users/{userId}/lock` | `{ reason: "SECURITY" | "POLICY" | "USER_REQUEST" | "OTHER", note? }` | `ADMIN`; target khác actor; `OTHER` cần safe note; audit + revoke active access | MVP |
 | `admin.users.unlock` | `POST /users/{userId}/unlock` | `{ reason: "SECURITY" | "POLICY" | "USER_REQUEST" | "OTHER", note? }` | `ADMIN`; target khác actor; `OTHER` cần safe note; audit, learner sign in lại | MVP |
 
-Admin write responses phải trả state server mới nhất. Account lookup yêu cầu exact identifier; invalid, unavailable hoặc unmanageable target trả safe result, không tiết lộ account/profile existence. Sau role hoặc lock change, target sessions bị invalidated. Không có Admin endpoint nào để grant/revoke entitlement/quota, hoặc browse attempts, saved words, recordings, progress hay conversations của learner.
+Admin write responses phải trả state server mới nhất. User Management is server-paginated and returns the permitted `accountName`, UUID, lifecycle state and ADMIN role; a selected UUID is then used for the protected detail/command routes. `accountName` is the owner-set name or “Chưa đặt tên”, never email. The directory has no search and no other learner-private data. Invalid, unavailable hoặc unmanageable target trả safe result, không tiết lộ account/profile existence. Sau role hoặc lock change, target sessions bị invalidated. Không có Admin endpoint nào để grant/revoke entitlement/quota, hoặc browse attempts, saved words, recordings, progress hay conversations của learner.
 
 ## 12. Privacy endpoints — Phase 2
 

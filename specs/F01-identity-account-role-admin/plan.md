@@ -6,7 +6,7 @@
 ## Summary
 
 Deliver the first protected Pchinese product slice: account registration and verification, sign-in,
-credential recovery, server-managed session lifecycle, and the restricted Admin Account/Roles tab.
+credential recovery, server-managed session lifecycle, and the safe Admin User Management tab.
 Spring Boot remains the transactional authority for credentials, sessions, account status, role
 grants and audit records. React supplies contract-bound client flows, accessible form UX and route guards
 only; it never treats its state or JWT claims as authority.
@@ -31,7 +31,7 @@ first sign-in in under five minutes (F01 SC-003). No additional latency SLO is i
 **Constraints**: Public API uses `/api/v1` and `{ success, data, error, meta }`; access JWT lives
 10 minutes in browser memory; refresh is opaque, rotated and never exposed in ordinary JSON; no raw
 credential/token/private learning data in API, logs or audit events.  
-**Scale/Scope**: One F01 slice: 7 authentication endpoints, 5 exact-ID Admin account/role
+**Scale/Scope**: One F01 slice: 7 authentication endpoints, a paginated Admin account directory and 5 account/role
 operations, their DTOs, tables/migrations, React flows and contract/security tests.
 
 ## Constitution Check
@@ -42,7 +42,7 @@ operations, their DTOs, tables/migrations, React flows and contract/security tes
 | --- | --- | --- |
 | Fixed architecture | PASS | Uses only React SPA, Spring Boot modular monolith, PostgreSQL/JPA and Flyway. No AI service or new infrastructure. |
 | Server authority | PASS | Spring Boot validates current account/session/authz version and executes every role/status/session mutation transactionally. |
-| Security/privacy | PASS | Bcrypt cost ≥12, signed access JWT, opaque hashed refresh token, CSRF/origin checks, exact-ID admin projection, safe audit data and no learner-data bypass. |
+| Security/privacy | PASS | Bcrypt cost ≥12, signed access JWT, opaque hashed refresh token, CSRF/origin checks, safe paginated admin projection, safe audit data and no learner-data bypass. |
 | Contract/migration safety | PASS | DTO/OpenAPI/envelope first; schema exactly follows `DATA_short.md`; Flyway migrations are focused and clean-DB tested. |
 | Quality/accessibility | PASS | Backend unit/integration/security coverage and frontend Jest/E2E accessibility/error-state coverage are planned. |
 
@@ -102,7 +102,7 @@ backend/
     │   │   ├── domain/
     │   │   └── persistence/         # entities + Spring Data repositories
     │   └── users/
-    │       ├── api/                 # exact-ID role/status DTOs and controller
+    │       ├── api/                 # user-directory plus selected-user role/status DTOs and controllers
     │       ├── application/          # account role/access commands
     │       ├── domain/
     │       └── persistence/
@@ -117,7 +117,7 @@ frontend/
     ├── api/                         # auth and admin-users contract-bound clients + DTO schemas
     ├── features/
     │   ├── auth/                    # register, verify, login, reset, in-memory auth session
-    │   └── admin/                   # exact-ID Account/Roles tab only
+    │   └── admin/                   # safe paginated User Management tab and selected-user commands
     ├── pages/                       # public auth pages and protected settings/admin composition
     ├── routes/                      # guest/auth/admin UX guards
     └── test/                        # Jest client/component/E2E support
@@ -157,11 +157,13 @@ in `src/components/`.
 - Logout revokes only the current refresh-session family. Role grant/revoke, password reset and account lock
   increment `authz_version` and revoke affected sessions/families atomically.
 
-### 3. Minimal Admin Account/Roles capability
+### 3. Minimal Admin User Management capability
 
-- `GET /users/{userId}/roles` accepts an exact UUID and returns only role(s) plus locked/unlocked
-  access state. It has no directory listing, autocomplete, email/name/profile, entitlement, quota,
-  attempt, recording, vocabulary, progress or chat field.
+- `GET /users` returns a server-paginated directory of the permitted `accountName`, account UUID,
+  lifecycle state and active `ADMIN` role. `accountName` is decrypted server-side from the
+  owner-set name (or “Chưa đặt tên” when absent); it cannot be searched. The directory never
+  returns email, other profile fields, entitlement, quota, session, attempt, recording, vocabulary,
+  progress or chat data. The existing selected-user commands remain the mutation boundary.
 - Role grant/revoke permits only another eligible target and serializes target/active-ADMIN role
   state. A command that would self-change or leave no active ADMIN returns `409 STATE_CONFLICT`
   without changing data.
@@ -179,18 +181,23 @@ in `src/components/`.
 - Add contract-bound `auth` and `adminUsers` API modules. Implement in-memory access token state and
   refresh single-flight; clear state and redirect on failed refresh, revoked token or current-session
   revoke. Never introduce browser token storage or a global domain store.
-- Add the Admin Account/Roles tab: exact UUID input first, minimal projection only, confirm dialogs
-  for destructive role/status commands, reason selector and conditional `OTHER` note. Do not make
-  optimistic admin mutations; reload projection after `409`.
+- Support multiple browser tabs by returning a non-credential `browserSessionId` with each access
+  session. A tab keeps only that selector in `sessionStorage`; access JWTs remain memory-only and
+  raw refresh/CSRF values remain in a per-session cookie pair. Refresh and logout bind the selected
+  UUID to the matching cookie before any token operation. Existing single-cookie sessions migrate on
+  their next refresh. The authenticated shell offers “Đăng nhập tài khoản khác” in a new tab rather
+  than replacing the active tab's account.
+- Add the Admin User Management tab: load safe paginated rows, allow a row to become the selected
+  minimal projection, and retain confirm dialogs for destructive role/status commands, reason selector
+  and conditional `OTHER` note. Do not make optimistic admin mutations; reload the selected row after `409`.
 - Use semantic design tokens, labels, field errors, error-summary focus, live status feedback,
   keyboard/focus-managed dialogs, WCAG AA contrast, 44×44px touch targets and responsive layouts.
 
 ### 5. Contract, migration and test sequence
 
 1. Update OpenAPI/API.md and API DTO/contract schemas first, including the neutral registration outcome.
-2. Add schema/entity/repository migrations in canonical auth dependency order:
-   `users → user_roles → auth_sessions → refresh_tokens → auth_action_tokens →
-   refresh_idempotency → auth_audit_events`.
+2. Reuse the canonical Supabase schema already defined by `DATA_short.md`; this directory endpoint
+   needs no new table or migration.
 3. Implement services and transaction/locking rules, then thin controllers and exception mapping.
 4. Implement contract-bound frontend clients before forms/pages; map `400/401/403/404/409/429` to safe UX.
 5. Add unit, integration, contract and E2E tests; verify migrations on a clean PostgreSQL database.

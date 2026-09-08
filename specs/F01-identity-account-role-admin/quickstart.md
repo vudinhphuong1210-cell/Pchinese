@@ -88,19 +88,22 @@ Expected:
 - Successful reset updates credential, increments authorization state, revokes all existing sessions
   and requires a new sign-in.
 
-### 5. Admin Account/Roles restriction and audit
+### 5. Admin User Management restriction and audit
 
 1. Sign in as controlled bootstrap ADMIN and enter /admin/users.
-2. Attempt lookup with invalid UUID, unknown UUID and a valid eligible target UUID.
-3. Confirm the valid response has only target ID, ADMIN role state and ACTIVE/LOCKED access state.
+2. Load the first and a later directory page; use boundary size values 1 and 50, then attempt the
+   route as a non-ADMIN.
+3. Confirm every directory row has the owner-set account name (or “Chưa đặt tên”), target UUID,
+   lifecycle state and ADMIN role state; inspect the response to confirm it has no email, other
+   profile fields, session, entitlement, quota or learner data.
 4. Grant ADMIN, revoke ADMIN, lock and unlock a second eligible target using each standard reason;
    use OTHER once with a 1–280-character safe note.
 5. Attempt self role/lock change and concurrently attempt to revoke/lock the final active ADMIN.
 
 Expected:
 
-- UI has no browse/autocomplete/profile/learning-data path; invalid/unmanageable lookup uses one
-  safe not-found/access state.
+- User Management has a server-paginated safe directory with a display-only account name, no
+  email/name/profile search and no learner-data path; a non-ADMIN receives a safe authorization failure.
 - Every accepted/rejected command has an immutable safe audit outcome; successful role changes have
   before/after role history.
 - Empty/missing OTHER note is validation failure with no state change.
@@ -126,7 +129,7 @@ Expected:
 - Backend integration tests: DTO validation, API envelopes, neutral anti-enumeration responses,
   JWT/session rejection, refresh replay/reuse, CSRF/origin checks and clean Flyway migration.
 - Frontend Jest: contract-envelope/error mapping, refresh single-flight, redirect/clear behavior,
-  no-token-storage behavior, exact-ID Admin UI, safe conflict UX and confirmation flows.
+  no-token-storage behavior, safe paginated User Management UI, safe conflict UX and confirmation flows.
 - E2E: the five scenarios above, using stable `data-testid` values and no CSS-coupled selectors.
 
 ## Implementation validation — 2026-09-07
@@ -135,3 +138,46 @@ Expected:
 - `mvn clean verify` passes unit tests and compiles the PostgreSQL-backed controller/migration integration suite. The suite is configured to run automatically through Failsafe when Docker is available.
 - This workstation has no reachable Docker daemon, so Testcontainers correctly skipped its clean-PostgreSQL execution. Run `mvn verify` with Docker available before merging a Flyway migration.
 - Frontend lint, Jest and Vite production build pass.
+
+## User Management validation — 2026-09-08
+
+- `GET /api/v1/users?page=&size=` is ADMIN-only, validates zero-based pages and sizes 1–50,
+  and returns the permitted account name, UUID, lifecycle state and active ADMIN role in a standard envelope.
+- Backend unit coverage verifies server pagination and the safe projection. Controller integration
+  coverage verifies unauthenticated/non-ADMIN rejection, validation, the permitted account name,
+  and the absence of email, other profile fields, session, entitlement and learner-data fields.
+- The UI is labelled “Quản lý người dùng” in both its heading and sidebar, loads the paginated
+  directory without manually entering a UUID, and retains commands only for the selected user.
+- `mvn verify`, frontend lint, all 17 Jest tests and the Vite production build pass. PostgreSQL
+  Testcontainers integration execution remains skipped on this workstation because Docker is not
+  reachable; run `mvn verify` with Docker available before merging.
+- Account-name regression coverage verifies server-side decryption for an ADMIN response, the
+  “Chưa đặt tên” fallback, and the modal's rendered account name. `mvn verify`, frontend lint,
+  Jest and Vite build passed again after this change.
+
+## Same-browser multi-account validation
+
+1. Sign in verified account A in one tab. Use **Đăng nhập tài khoản khác** to open a new tab and
+   sign in verified account B.
+2. Reload both tabs, then let each make an authenticated request after access-token refresh. Each
+   tab remains on its own account; inspecting browser storage shows only a tab-local
+   `browserSessionId`, never an access or refresh token.
+3. Sign out B. Reload A and refresh its access session; A remains authenticated. A malformed or
+   mismatched `X-Browser-Session-Id` must return the standard safe refresh failure without changing
+   either account's session.
+
+## Same-browser multi-account implementation validation — 2026-09-09
+
+- The API now issues an HttpOnly refresh cookie and a paired CSRF cookie named with the server
+  session UUID. The frontend retains only that non-credential UUID in tab-local `sessionStorage`;
+  access tokens remain memory-only and refresh tokens remain HttpOnly.
+- Backend controller coverage adds two verified accounts with both cookie pairs in the same browser
+  request: each can refresh independently, logging out B leaves A refreshable, an old global cookie
+  migrates once, and a mismatched selector is rejected safely.
+- No database migration is required: `auth_sessions.session_id` already provides the server-side
+  session identity specified by `DATA_short.md`.
+- `mvn verify` passed. The PostgreSQL Testcontainers integration classes compiled but were skipped
+  because this workstation has no reachable Docker daemon; run the same command with Docker before
+  release to execute the database-backed scenarios.
+- Frontend `npm run lint`, Jest (19 tests), and `npm run build` passed. The F01 OpenAPI YAML also
+  parsed successfully.

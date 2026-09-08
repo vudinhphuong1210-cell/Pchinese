@@ -3,12 +3,27 @@ import { apiUrl } from './apiUrl.js';
 
 export const adminUsersApi = {
   /**
-   * Reads exact-ID minimal role and access projection.
-   * Returns { userId, roles, accessState }.
+   * Lists the server-paginated, privacy-safe User Management summaries.
+   * Each item contains only userId, permitted accountName, accountState and active ADMIN roles.
+   */
+  async listManagedUsers({ page = 0, size = 20 } = {}) {
+    if (!Number.isInteger(page) || page < 0) {
+      throw new Error('page must be a non-negative integer');
+    }
+    if (!Number.isInteger(size) || size < 1 || size > 50) {
+      throw new Error('size must be an integer from 1 to 50');
+    }
+    const query = new URLSearchParams({ page: String(page), size: String(size) });
+    return httpClient(apiUrl(`/users?${query.toString()}`), { method: 'GET' });
+  },
+
+  /**
+   * Reads the selected user's minimal role and access projection.
+   * Returns { userId, accountName, roles, accessState }.
    */
   async getAccountRoleProjection(userId) {
     if (!userId || typeof userId !== 'string') {
-      throw new Error('userId exact UUID required');
+      throw new Error('selected userId required');
     }
     return httpClient(apiUrl(`/users/${encodeURIComponent(userId)}/roles`), {
       method: 'GET',

@@ -31,4 +31,5 @@
 
 ## Notes
 
-- Validation passed on 2026-09-05.
+- Validation passed on 2026-09-08 after defining the structured, privacy-minimized audit-event
+  organization. No clarification markers remain.

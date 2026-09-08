@@ -8,6 +8,9 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    locations: filesystem:../supabase/migrations
+    sql-migration-prefix: ""
+    sql-migration-separator: _
 
 pchinese:
   mail:

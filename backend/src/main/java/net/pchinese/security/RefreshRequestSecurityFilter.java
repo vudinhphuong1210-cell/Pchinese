@@ -16,6 +16,9 @@ import java.net.URI;
 
 @Component
 public class RefreshRequestSecurityFilter extends OncePerRequestFilter {
+    private static final String BROWSER_SESSION_HEADER = "X-Browser-Session-Id";
+    private static final String LEGACY_CSRF_COOKIE = "XSRF-TOKEN";
+    private static final String CSRF_COOKIE_PREFIX = "XSRF-TOKEN-";
     private final PchineseSecurityProperties properties;
     private final ObjectMapper objectMapper;
 
@@ -33,7 +36,7 @@ public class RefreshRequestSecurityFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
-        String csrfCookie = cookie(request, "XSRF-TOKEN");
+        String csrfCookie = selectedCsrfCookie(request);
         String csrfHeader = request.getHeader("X-CSRF-Token");
         if (csrfCookie == null || csrfHeader == null || !constantTimeEquals(csrfCookie, csrfHeader) || !trustedOrigin(request)) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
@@ -58,6 +61,25 @@ public class RefreshRequestSecurityFilter extends OncePerRequestFilter {
         if (request.getCookies() == null) return null;
         for (Cookie cookie : request.getCookies()) if (name.equals(cookie.getName())) return cookie.getValue();
         return null;
+    }
+    private String selectedCsrfCookie(HttpServletRequest request) {
+        String requestedSessionId = request.getHeader(BROWSER_SESSION_HEADER);
+        if (requestedSessionId != null && !requestedSessionId.isBlank()) {
+            try {
+                return cookie(request, CSRF_COOKIE_PREFIX + java.util.UUID.fromString(requestedSessionId));
+            } catch (IllegalArgumentException ignored) {
+                return null;
+            }
+        }
+        java.util.List<Cookie> namedCookies = new java.util.ArrayList<>();
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if (cookie.getName().startsWith(CSRF_COOKIE_PREFIX)) namedCookies.add(cookie);
+            }
+        }
+        if (namedCookies.size() == 1) return namedCookies.getFirst().getValue();
+        if (namedCookies.size() > 1) return null;
+        return cookie(request, LEGACY_CSRF_COOKIE);
     }
     private boolean constantTimeEquals(String first, String second) {
         return java.security.MessageDigest.isEqual(first.getBytes(java.nio.charset.StandardCharsets.UTF_8),

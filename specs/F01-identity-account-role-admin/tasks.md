@@ -38,16 +38,18 @@ description: "Actionable implementation tasks for F01 Identity, Account, and Rol
 
 ## Phase 4: User Story 2 - Administer roles and account access (Priority: P1)
 
-**Goal**: Deliver exact-ID-only ADMIN role and account-access commands with immutable safe audit evidence.
+**Goal**: Deliver a safe paginated User Management directory plus ADMIN role and account-access
+commands with immutable safe audit evidence.
 
-**Independent Test**: A controlled ADMIN can manage an eligible exact-ID target, while self/final-ADMIN guards and private-data restrictions are enforced.
+**Independent Test**: A controlled ADMIN can select an eligible target from a safe user directory,
+then manage role/access while self/final-ADMIN guards and private-data restrictions are enforced.
 
-- [X] T016 [P] [US2] Add integration tests for exact-ID lookup, grant/revoke, lock/unlock, self-action and final-ADMIN concurrency guards in backend/src/test/java/net/pchinese/users/AccountRoleControllerIT.java.
+- [X] T016 [P] [US2] Add integration tests for the safe directory, selected-user projection, grant/revoke, lock/unlock, self-action and final-ADMIN concurrency guards in backend/src/test/java/net/pchinese/users/AccountRoleControllerIT.java.
 - [X] T017 [P] Add service unit tests for role-history, authz-version, session invalidation and OTHER-note validation in backend/src/test/java/net/pchinese/users/AccountRoleServiceTest.java.
 - [X] T018 [US2] Implement transactional ADMIN role/access commands and append-only safe audit writes in backend/src/main/java/net/pchinese/users/application/AccountRoleService.java.
-- [X] T019 [US2] Implement exact-ID role/access DTOs and protected command routes in backend/src/main/java/net/pchinese/users/api/AccountRoleController.java.
-- [x] T020 [US2] Implement the contract-bound exact-ID admin client, Account/Roles tab and accessible confirmation/conflict UI in frontend/src/api/adminUsers.js and frontend/src/features/admin/AccountRolesTab.jsx.
-- [x] T021 [US2] Add Jest coverage that Admin UI has no directory/private-learning-data path in frontend/src/features/admin/AccountRolesTab.test.jsx.
+- [X] T019 [US2] Implement protected selected-user role/access DTOs and command routes in backend/src/main/java/net/pchinese/users/api/AccountRoleController.java.
+- [x] T020 [US2] Implement the contract-bound admin client, User Management tab and accessible confirmation/conflict UI in frontend/src/api/adminUsers.js and frontend/src/features/admin/AccountRolesTab.jsx.
+- [x] T021 [US2] Add Jest coverage for safe User Management UI with no private learner-data path in frontend/src/features/admin/AccountRolesTab.test.jsx.
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 
@@ -81,7 +83,7 @@ Deliver US1 first as the deployable security MVP. Add US2 only after the protect
 - [ ] T030 Implement and document a deployment-controlled, idempotent initial ADMIN bootstrap that cannot be reached through public registration per plan: controlled bootstrap ADMIN (missing)
 - [ ] T031 Persist immutable actor, target, correlation and outcome audit evidence for every accepted or rejected role/lock/unlock attempt, including authorization, validation, unknown-target, self and final-ADMIN failures, without rolling the rejection audit back per SC-002 and plan: audit decision (partial)
 - [ ] T032 Revoke the authenticated current server session on logout even when its refresh cookie is missing, expired or already invalid, while keeping the response safe and clearing browser credentials per FR-001 and US1/AC2 (partial)
-- [ ] T033 Validate exact account UUIDs in the Admin client and map malformed path identifiers to the specified safe validation/not-found envelope instead of INTERNAL_ERROR per FR-007 and edge: invalid account identifier (partial)
+- [X] T033 Retire manually entered exact account UUIDs from the Admin client; selected command targets originate only from the safe directory response, so malformed user-supplied path identifiers have no UI path per FR-007.
 - [ ] T034 Make simultaneous duplicate registration requests converge on the same neutral 202 outcome without a uniqueness race or account-existence signal, and add concurrency coverage per edge: duplicate registration (partial)
 - [ ] T035 At final project stabilization, execute the PostgreSQL-backed backend acceptance suite for logout/reset, locked and unauthorized actors, CSRF/origin, audit durability, session invalidation, final-ADMIN concurrency and the applicable schema verification per plan: backend test sequence (partial)
 - [ ] T036 Install and configure runnable Playwright E2E support and cover all five F01 quickstart journeys, including verification, refresh/reuse, logout, recovery, Admin mutations, conflicts and audit-relevant outcomes per plan: E2E coverage (partial)
@@ -89,3 +91,46 @@ Deliver US1 first as the deployable security MVP. Add US2 only after the protect
 - [ ] T038 Strengthen OTHER-note validation so credentials, identifiers and learner-private content cannot enter audit details, and cover every standard reason plus unsafe-note rejection per FR-008 and SC-006 (partial)
 - [ ] T039 Implement and test accessible error-summary focus, live status announcements, semantic modal behavior, focus trapping, Escape/cancel and trigger-focus restoration for F01 auth and Admin flows per plan: accessible frontend UX (partial)
 - [ ] T040 Add contract-aligned throttling for enumeration-sensitive public registration, verification and recovery requests, return the documented safe 429 envelope, and map it to neutral frontend UX per plan: OpenAPI 429 contract (missing)
+
+## Phase 7: User Management revision — 2026-09-08
+
+**Goal**: Replace the Exact-ID entry UX with a server-paginated, safe User Management list while
+retaining the protected commands for a selected account.
+
+**Independent Test**: An ADMIN sees UUID, lifecycle state and ADMIN role only, selects a user and
+can issue the existing protected commands; unauthenticated and non-ADMIN callers cannot list users.
+
+- [X] T041 [P] [US2] Synchronize the F01 OpenAPI contract, API registry and quickstart for `GET /users` safe pagination in specs/F01-identity-account-role-admin/contracts/f01-openapi.yaml, API.md and specs/F01-identity-account-role-admin/quickstart.md.
+- [X] T042 [P] [US2] Add unit and integration coverage for Admin-only safe pagination, validation and no-private-field responses in backend/src/test/java/net/pchinese/users/.
+- [X] T043 [US2] Add a Spring Data projection and transactional service/controller directory route in backend/src/main/java/net/pchinese/users/persistence/UserRepository.java, backend/src/main/java/net/pchinese/users/application/AccountRoleService.java and backend/src/main/java/net/pchinese/users/api/UserDirectoryController.java.
+- [X] T044 [P] [US2] Add the paginated user-directory client method in frontend/src/api/adminUsers.js.
+- [X] T045 [US2] Replace the Exact-ID Admin UI with the accessible “Quản lý người dùng” list and selected-user command panel in frontend/src/features/admin/AccountRolesTab.jsx and frontend/src/components/Sidebar.jsx.
+- [X] T046 [US2] Update Jest coverage, run backend tests plus frontend lint, test and build, and record validation in specs/F01-identity-account-role-admin/quickstart.md.
+
+## Phase 8: Account name in User Management — 2026-09-08
+
+**Goal**: Show the owner-set account name rather than a UUID as the user label in the directory and
+selected-user dialog, while preserving UUID as a secondary reference and keeping email/profile data private.
+
+**Independent Test**: An ADMIN receives the selected account's `accountName` in the directory and
+detail projection; the UI displays that name, never falls back to UUID or email, and uses “Chưa đặt tên” only when the owner has not set one.
+
+- [X] T047 [P] [US2] Synchronize F01 specification, plan, projection model, OpenAPI contract, API registry and quickstart for permitted display-only `accountName` in specs/F01-identity-account-role-admin/, API.md.
+- [X] T048 [P] [US2] Add backend unit/integration assertions for ADMIN-only accountName decryption, neutral missing-name fallback and no email/other-profile disclosure in backend/src/test/java/net/pchinese/users/.
+- [X] T049 [US2] Extend the JPA projection and AccountRoleService response DTOs with server-derived accountName from `display_name_ciphertext` in backend/src/main/java/net/pchinese/users/.
+- [X] T050 [US2] Render only the contract `accountName` (or “Chưa đặt tên”) as the account label and add Jest coverage in frontend/src/features/admin/AccountRolesTab.jsx and frontend/src/features/admin/AccountRolesTab.test.jsx.
+- [X] T051 [US2] Run backend tests plus frontend lint, test and build; record the validation result in specs/F01-identity-account-role-admin/quickstart.md.
+
+## Phase 9: Concurrent browser accounts — 2026-09-09
+
+**Goal**: Allow separate browser tabs to keep different verified accounts signed in without moving
+access or refresh credentials into browser storage.
+
+**Independent Test**: Two tabs use different account sessions through refresh and reload; logging
+out one tab leaves the other session valid.
+
+- [X] T052 [P] [US1] Synchronize F01 specification, plan, session model, OpenAPI contract, API registry and quickstart for per-tab browser-session routing in specs/F01-identity-account-role-admin/ and API.md.
+- [X] T053 [P] [US1] Add backend integration coverage for two named browser cookie pairs, per-tab refresh/logout isolation, legacy-cookie migration and invalid selector handling in backend/src/test/java/net/pchinese/auth/AuthControllerIT.java.
+- [X] T054 [US1] Route refresh/logout through the validated session selector and matching per-session cookie pair in backend/src/main/java/net/pchinese/auth/ and backend/src/main/java/net/pchinese/security/.
+- [X] T055 [US1] Store only the non-credential tab selector, propagate it through the contract-bound auth client, and provide the accessible additional-account tab entry point in frontend/src/features/auth/, frontend/src/api/, frontend/src/components/Sidebar.jsx and frontend/src/App.jsx.
+- [X] T056 [US1] Add Jest coverage, run backend validation plus frontend lint, test and build, and record results in specs/F01-identity-account-role-admin/quickstart.md.

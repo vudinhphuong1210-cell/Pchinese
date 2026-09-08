@@ -10,7 +10,7 @@ servers:
   - url: /api/v1
 tags:
   - name: Auth
-  - name: AdminAccountRoles
+  - name: AdminUserManagement
 paths:
   /auth/register:
     post:
@@ -95,12 +95,12 @@ paths:
               $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Access-session result. Web refresh value is set only by Set-Cookie.
+          description: Access-session result. Web refresh and CSRF values are set only by per-session Set-Cookie values.
           headers:
             Set-Cookie:
               schema:
                 type: string
-              description: Web only; protected __Host-pchinese-refresh cookie and CSRF cookie.
+              description: Web only; protected per-session refresh and CSRF cookies. Raw refresh values never appear in JSON.
           content:
             application/json:
               schema:
@@ -117,13 +117,14 @@ paths:
       summary: Rotate or safely replay a refresh session
       operationId: refresh
       description: >
-        Web requires the protected refresh cookie, X-CSRF-Token, trusted
-        Origin/Referer and X-Refresh-Request-Id UUID. Mobile sends its
+        Web requires the protected refresh cookie selected by X-Browser-Session-Id,
+        its matching X-CSRF-Token, trusted Origin/Referer and X-Refresh-Request-Id UUID. Mobile sends its
         secure-store refresh credential over TLS. A same-ID retry may replay
         for 30 seconds; a distinct reuse revokes the family.
       security: []
       parameters:
         - $ref: '#/components/parameters/RefreshRequestId'
+        - $ref: '#/components/parameters/BrowserSessionId'
       responses:
         '200':
           description: Rotated or idempotently replayed access-session result
@@ -139,6 +140,8 @@ paths:
       summary: Revoke the current refresh session
       operationId: logout
       security: []
+      parameters:
+        - $ref: '#/components/parameters/BrowserSessionId'
       responses:
         '200':
           $ref: '#/components/responses/EmptySuccess'
@@ -184,16 +187,43 @@ paths:
           $ref: '#/components/responses/EmptySuccess'
         '400':
           $ref: '#/components/responses/ValidationError'
+  /users:
+    get:
+      tags: [AdminUserManagement]
+      summary: List safe user-management summaries for an administrator
+      operationId: listManagedUsers
+      description: >
+        Returns a server-paginated list containing the permitted accountName,
+        account UUID, lifecycle state and active ADMIN role. accountName is the
+        owner-set name or “Chưa đặt tên”; it is display-only and never searchable.
+        The response never returns email, other profile fields, session,
+        entitlement, quota or learner-learning data.
+      parameters:
+        - $ref: '#/components/parameters/PageNumber'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Safe paginated account summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserDirectoryEnvelope'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/AuthorizationDenied'
   /users/{userId}/roles:
     get:
-      tags: [AdminAccountRoles]
+      tags: [AdminUserManagement]
       summary: Read an exact-ID minimal role/access projection
       operationId: getAccountRoleProjection
       parameters:
         - $ref: '#/components/parameters/UserId'
       responses:
         '200':
-          description: Role and access state only
+          description: Permitted account name, role and access state only
           content:
             application/json:
               schema:
@@ -205,7 +235,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     post:
-      tags: [AdminAccountRoles]
+      tags: [AdminUserManagement]
       summary: Grant ADMIN to another eligible exact-ID account
       operationId: grantAdminRole
       parameters:
@@ -235,7 +265,7 @@ paths:
           $ref: '#/components/responses/StateConflict'
   /users/{userId}/roles/ADMIN:
     delete:
-      tags: [AdminAccountRoles]
+      tags: [AdminUserManagement]
       summary: Revoke ADMIN from another eligible exact-ID account
       operationId: revokeAdminRole
       parameters:
@@ -257,7 +287,7 @@ paths:
           $ref: '#/components/responses/StateConflict'
   /users/{userId}/lock:
     post:
-      tags: [AdminAccountRoles]
+      tags: [AdminUserManagement]
       summary: Lock another eligible account and revoke its active access
       operationId: lockAccount
       parameters:
@@ -287,7 +317,7 @@ paths:
           $ref: '#/components/responses/StateConflict'
   /users/{userId}/unlock:
     post:
-      tags: [AdminAccountRoles]
+      tags: [AdminUserManagement]
       summary: Unlock another eligible account; old sessions remain revoked
       operationId: unlockAccount
       parameters:
@@ -332,6 +362,24 @@ components:
       in: header
       required: true
       schema: { type: string, format: uuid }
+    BrowserSessionId:
+      name: X-Browser-Session-Id
+      in: header
+      required: false
+      description: Non-credential per-tab selector for the matching Web refresh and CSRF cookie pair. Omit only when exactly one legacy or named browser session cookie is available.
+      schema: { type: string, format: uuid }
+    PageNumber:
+      name: page
+      in: query
+      required: false
+      description: Zero-based page number.
+      schema: { type: integer, minimum: 0, default: 0 }
+    PageSize:
+      name: size
+      in: query
+      required: false
+      description: Number of safe summaries per page.
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
   responses:
     EmptySuccess:
       description: Command accepted and completed
@@ -423,19 +471,49 @@ components:
             required: [note]
     AuthSession:
       type: object
-      required: [accessToken, expiresAt]
+      required: [accessToken, expiresAt, roles, browserSessionId]
       properties:
         accessToken: { type: string, readOnly: true }
         expiresAt: { type: string, format: date-time }
+        browserSessionId:
+          type: string
+          format: uuid
+          description: Non-credential selector for the current browser tab. It never authenticates without the matching HttpOnly refresh cookie.
+        roles:
+          type: array
+          description: Current server-derived roles for UI visibility only; the backend remains the authorization authority.
+          items: { type: string, enum: [ADMIN] }
     AccountManagementProjection:
       type: object
-      required: [userId, roles, accessState]
+      required: [userId, accountName, roles, accessState]
       properties:
         userId: { type: string, format: uuid }
+        accountName: { type: string, minLength: 1, maxLength: 120 }
         roles:
           type: array
           items: { type: string, enum: [ADMIN] }
         accessState: { type: string, enum: [ACTIVE, LOCKED] }
+    AdminUserSummary:
+      type: object
+      required: [userId, accountName, accountState, roles]
+      properties:
+        userId: { type: string, format: uuid }
+        accountName: { type: string, minLength: 1, maxLength: 120 }
+        accountState: { type: string, enum: [PENDING_VERIFICATION, ACTIVE, LOCKED, DISABLED] }
+        roles:
+          type: array
+          items: { type: string, enum: [ADMIN] }
+    AdminUserDirectory:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/AdminUserSummary' }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 50 }
+        totalItems: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
     VerifiedAccount:
       type: object
       required: [status]
@@ -479,6 +557,14 @@ components:
       properties:
         success: { const: true }
         data: { $ref: '#/components/schemas/AccountManagementProjection' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AdminUserDirectoryEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/AdminUserDirectory' }
         error: { type: 'null' }
         meta: { $ref: '#/components/schemas/Meta' }
     VerifiedAccountEnvelope:

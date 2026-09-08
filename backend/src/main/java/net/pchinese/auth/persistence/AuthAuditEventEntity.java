@@ -30,4 +30,10 @@ public class AuthAuditEventEntity {
         event.actorUserId = actor; event.targetUserId = target; event.sessionId = session; event.beforeRoles = before; event.afterRoles = after;
         event.correlationId = correlationId; event.details = details; event.occurredAt = now; return event;
     }
+    public String getEventType() { return eventType; }
+    public UUID getActorUserId() { return actorUserId; }
+    public UUID getTargetUserId() { return targetUserId; }
+    public UUID getSessionId() { return sessionId; }
+    public JsonNode getDetails() { return details; }
+    public Instant getOccurredAt() { return occurredAt; }
 }

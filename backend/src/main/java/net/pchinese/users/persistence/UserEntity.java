@@ -39,6 +39,18 @@ public class UserEntity {
     private Instant createdAt;
     @Column(nullable = false)
     private Instant updatedAt;
+    @Column(name = "display_name_ciphertext")
+    private byte[] displayNameCiphertext;
+    @Column(name = "native_language_code", nullable = false, length = 10)
+    private String nativeLanguageCode;
+    @Column(name = "interface_locale", nullable = false, length = 16)
+    private String interfaceLocale;
+    @Column(name = "time_zone", nullable = false, length = 64)
+    private String timeZone;
+    @Column(name = "target_hsk_level")
+    private Short targetHskLevel;
+    @Column(name = "daily_goal_minutes", nullable = false)
+    private short dailyGoalMinutes;
     @Version
     @Column(nullable = false)
     private long version;
@@ -56,6 +68,10 @@ public class UserEntity {
         user.lastActivityAt = now;
         user.createdAt = now;
         user.updatedAt = now;
+        user.nativeLanguageCode = "vi";
+        user.interfaceLocale = "vi-VN";
+        user.timeZone = "Asia/Ho_Chi_Minh";
+        user.dailyGoalMinutes = 15;
         return user;
     }
 
@@ -66,11 +82,28 @@ public class UserEntity {
     public UserStatus getStatus() { return status; }
     public Instant getEmailVerifiedAt() { return emailVerifiedAt; }
     public long getAuthzVersion() { return authzVersion; }
+    public byte[] getDisplayNameCiphertext() { return displayNameCiphertext; }
+    public String getNativeLanguageCode() { return nativeLanguageCode; }
+    public String getInterfaceLocale() { return interfaceLocale; }
+    public String getTimeZone() { return timeZone; }
+    public Integer getTargetHskLevel() { return targetHskLevel == null ? null : targetHskLevel.intValue(); }
+    public int getDailyGoalMinutes() { return dailyGoalMinutes; }
+    public long getVersion() { return version; }
     public boolean isActiveVerified() { return status == UserStatus.ACTIVE && emailVerifiedAt != null; }
     public void activate(Instant now) { status = UserStatus.ACTIVE; emailVerifiedAt = now; touch(now); }
     public void lock(Instant now) { status = UserStatus.LOCKED; incrementAuthzVersion(now); }
     public void unlock(Instant now) { status = UserStatus.ACTIVE; touch(now); }
     public void replacePassword(String hash, Instant now) { passwordHash = hash; incrementAuthzVersion(now); }
     public void incrementAuthzVersion(Instant now) { authzVersion++; touch(now); }
+    public void updateProfile(byte[] encryptedDisplayName, String nativeLanguageCode, String interfaceLocale, String timeZone,
+                              Integer targetHskLevel, int dailyGoalMinutes, Instant now) {
+        displayNameCiphertext = encryptedDisplayName;
+        this.nativeLanguageCode = nativeLanguageCode;
+        this.interfaceLocale = interfaceLocale;
+        this.timeZone = timeZone;
+        this.targetHskLevel = targetHskLevel == null ? null : targetHskLevel.shortValue();
+        this.dailyGoalMinutes = (short) dailyGoalMinutes;
+        touch(now);
+    }
     public void touch(Instant now) { lastActivityAt = now; updatedAt = now; }
 }

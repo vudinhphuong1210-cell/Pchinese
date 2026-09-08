@@ -78,20 +78,73 @@ class AuthControllerIT {
         MvcResult login = mockMvc.perform(post("/api/v1/auth/login").contentType("application/json").content("""
                 {"email":"%s","password":"%s","deviceId":"browser-1","deviceLabel":"Test browser","platform":"WEB"}
                 """.formatted(email, password))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.sessionId").doesNotExist()).andReturn();
-        Cookie originalRefresh = login.getResponse().getCookie("__Host-pchinese-refresh");
-        Cookie csrf = login.getResponse().getCookie("XSRF-TOKEN");
+                .andExpect(jsonPath("$.data.browserSessionId").isNotEmpty())
+                .andExpect(jsonPath("$.data.roles").isEmpty()).andReturn();
+        String browserSessionId = com.jayway.jsonpath.JsonPath.read(login.getResponse().getContentAsString(), "$.data.browserSessionId");
+        Cookie originalRefresh = login.getResponse().getCookie("__Host-pchinese-refresh-" + browserSessionId);
+        Cookie csrf = login.getResponse().getCookie("XSRF-TOKEN-" + browserSessionId);
         String originalAccess = com.jayway.jsonpath.JsonPath.read(login.getResponse().getContentAsString(), "$.data.accessToken");
         mockMvc.perform(get("/api/v1/auth/sessions").header("Authorization", "Bearer " + originalAccess))
                 .andExpect(status().isNotFound());
+
+        // A browser upgraded from the old single-cookie design can refresh once
+        // without a selector. The server returns the new per-session cookies.
+        MvcResult legacyMigration = refreshLegacy(
+                new Cookie("__Host-pchinese-refresh", originalRefresh.getValue()),
+                new Cookie("XSRF-TOKEN", csrf.getValue()), UUID.randomUUID().toString())
+                .andExpect(status().isOk()).andReturn();
+        originalRefresh = legacyMigration.getResponse().getCookie("__Host-pchinese-refresh-" + browserSessionId);
+        csrf = legacyMigration.getResponse().getCookie("XSRF-TOKEN-" + browserSessionId);
+        org.junit.jupiter.api.Assertions.assertNotNull(originalRefresh);
+        org.junit.jupiter.api.Assertions.assertNotNull(csrf);
+
         String requestId = UUID.randomUUID().toString();
-        MvcResult firstRefresh = refresh(originalRefresh, csrf, requestId).andExpect(status().isOk()).andReturn();
-        MvcResult replay = refresh(originalRefresh, csrf, requestId).andExpect(status().isOk()).andReturn();
+        MvcResult firstRefresh = refresh(browserSessionId, originalRefresh, csrf, requestId).andExpect(status().isOk()).andReturn();
+        MvcResult replay = refresh(browserSessionId, originalRefresh, csrf, requestId).andExpect(status().isOk()).andReturn();
         String refreshedAccess = com.jayway.jsonpath.JsonPath.read(firstRefresh.getResponse().getContentAsString(), "$.data.accessToken");
         String replayAccess = com.jayway.jsonpath.JsonPath.read(replay.getResponse().getContentAsString(), "$.data.accessToken");
         org.junit.jupiter.api.Assertions.assertEquals(refreshedAccess, replayAccess);
-        refresh(originalRefresh, csrf, UUID.randomUUID().toString()).andExpect(status().isUnauthorized())
+        refresh(browserSessionId, originalRefresh, csrf, UUID.randomUUID().toString()).andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error.code").value("REFRESH_TOKEN_INVALID"));
+    }
+
+    @Test
+    void separateAccountTabsKeepRefreshAndLogoutIsolated() throws Exception {
+        LoginFixture accountA = activeLogin("multi-account-a");
+        LoginFixture accountB = activeLogin("multi-account-b");
+        org.junit.jupiter.api.Assertions.assertNotEquals(accountA.browserSessionId(), accountB.browserSessionId());
+
+        MvcResult aRefresh = refresh(accountA.browserSessionId(), accountA.refresh(), accountA.csrf(), UUID.randomUUID().toString(),
+                accountB.refresh(), accountB.csrf()).andExpect(status().isOk()).andReturn();
+        Cookie rotatedA = aRefresh.getResponse().getCookie("__Host-pchinese-refresh-" + accountA.browserSessionId());
+        Cookie rotatedCsrfA = aRefresh.getResponse().getCookie("XSRF-TOKEN-" + accountA.browserSessionId());
+        org.junit.jupiter.api.Assertions.assertNotNull(rotatedA);
+        org.junit.jupiter.api.Assertions.assertNotNull(rotatedCsrfA);
+
+        MvcResult bRefresh = refresh(accountB.browserSessionId(), accountB.refresh(), accountB.csrf(), UUID.randomUUID().toString(),
+                rotatedA, rotatedCsrfA).andExpect(status().isOk()).andReturn();
+        Cookie rotatedB = bRefresh.getResponse().getCookie("__Host-pchinese-refresh-" + accountB.browserSessionId());
+        Cookie rotatedCsrfB = bRefresh.getResponse().getCookie("XSRF-TOKEN-" + accountB.browserSessionId());
+        org.junit.jupiter.api.Assertions.assertNotNull(rotatedB);
+        org.junit.jupiter.api.Assertions.assertNotNull(rotatedCsrfB);
+
+        mockMvc.perform(post("/api/v1/auth/logout").cookie(rotatedA, rotatedCsrfA, rotatedB, rotatedCsrfB)
+                .header("Origin", "http://localhost:3000").header("X-CSRF-Token", rotatedCsrfB.getValue())
+                .header("X-Browser-Session-Id", accountB.browserSessionId()))
+                .andExpect(status().isOk());
+
+        refresh(accountA.browserSessionId(), rotatedA, rotatedCsrfA, UUID.randomUUID().toString())
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void selectorCannotBeUsedToRouteToAnotherAccountsCookie() throws Exception {
+        LoginFixture account = activeLogin("mismatched-selector");
+        mockMvc.perform(post("/api/v1/auth/refresh").cookie(account.refresh(), account.csrf())
+                .header("Origin", "http://localhost:3000").header("X-CSRF-Token", account.csrf().getValue())
+                .header("X-Refresh-Request-Id", UUID.randomUUID().toString())
+                .header("X-Browser-Session-Id", UUID.randomUUID().toString()))
+                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -101,10 +154,44 @@ class AuthControllerIT {
                 .andExpect(jsonPath("$.error.code").value("VALIDATION_ERROR"));
     }
 
-    private org.springframework.test.web.servlet.ResultActions refresh(Cookie refresh, Cookie csrf, String requestId) throws Exception {
+    private LoginFixture activeLogin(String deviceId) throws Exception {
+        String email = "multi-" + UUID.randomUUID() + "@example.test";
+        String password = "StrongPassword123";
+        mockMvc.perform(post("/api/v1/auth/register").contentType("application/json")
+                .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
+                .andExpect(status().isAccepted());
+        UUID userId = users.findByEmailLookupHash(sensitiveValues.hashEmail(email)).orElseThrow().getUserId();
+        mockMvc.perform(post("/api/v1/auth/email-verifications/confirm").contentType("application/json")
+                .content("{\"verificationToken\":\"" + delivery.token(userId, ActionTokenPurpose.EMAIL_VERIFICATION) + "\"}"))
+                .andExpect(status().isOk());
+        MvcResult login = mockMvc.perform(post("/api/v1/auth/login").contentType("application/json").content("""
+                {"email":"%s","password":"%s","deviceId":"%s","deviceLabel":"Test browser","platform":"WEB"}
+                """.formatted(email, password, deviceId))).andExpect(status().isOk()).andReturn();
+        String browserSessionId = com.jayway.jsonpath.JsonPath.read(login.getResponse().getContentAsString(), "$.data.browserSessionId");
+        Cookie refresh = login.getResponse().getCookie("__Host-pchinese-refresh-" + browserSessionId);
+        Cookie csrf = login.getResponse().getCookie("XSRF-TOKEN-" + browserSessionId);
+        org.junit.jupiter.api.Assertions.assertNotNull(refresh);
+        org.junit.jupiter.api.Assertions.assertNotNull(csrf);
+        return new LoginFixture(browserSessionId, refresh, csrf);
+    }
+
+    private org.springframework.test.web.servlet.ResultActions refresh(String browserSessionId, Cookie refresh, Cookie csrf, String requestId,
+                                                                        Cookie... additionalCookies) throws Exception {
+        Cookie[] cookies = new Cookie[2 + additionalCookies.length];
+        cookies[0] = refresh;
+        cookies[1] = csrf;
+        System.arraycopy(additionalCookies, 0, cookies, 2, additionalCookies.length);
+        return mockMvc.perform(post("/api/v1/auth/refresh").cookie(cookies).header("Origin", "http://localhost:3000")
+                .header("X-CSRF-Token", csrf.getValue()).header("X-Refresh-Request-Id", requestId)
+                .header("X-Browser-Session-Id", browserSessionId));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions refreshLegacy(Cookie refresh, Cookie csrf, String requestId) throws Exception {
         return mockMvc.perform(post("/api/v1/auth/refresh").cookie(refresh, csrf).header("Origin", "http://localhost:3000")
                 .header("X-CSRF-Token", csrf.getValue()).header("X-Refresh-Request-Id", requestId));
     }
+
+    private record LoginFixture(String browserSessionId, Cookie refresh, Cookie csrf) { }
 
     @TestConfiguration
     static class TokenDeliveryConfig {

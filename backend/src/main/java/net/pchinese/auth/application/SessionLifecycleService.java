@@ -13,16 +13,19 @@ import net.pchinese.security.JwtService;
 import net.pchinese.security.SensitiveValueService;
 import net.pchinese.users.persistence.UserEntity;
 import net.pchinese.users.persistence.UserRepository;
+import net.pchinese.users.persistence.UserRoleRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
 public class SessionLifecycleService {
     private final UserRepository users;
+    private final UserRoleRepository roles;
     private final AuthSessionRepository sessions;
     private final RefreshTokenRepository refreshTokens;
     private final RefreshIdempotencyRepository idempotency;
@@ -32,11 +35,11 @@ public class SessionLifecycleService {
     private final AuthAuditService audit;
     private final ObjectMapper objectMapper;
 
-    public SessionLifecycleService(UserRepository users, AuthSessionRepository sessions, RefreshTokenRepository refreshTokens,
+    public SessionLifecycleService(UserRepository users, UserRoleRepository roles, AuthSessionRepository sessions, RefreshTokenRepository refreshTokens,
                                    RefreshIdempotencyRepository idempotency, PasswordEncoder passwordEncoder,
                                    SensitiveValueService sensitiveValues, JwtService jwtService, AuthAuditService audit,
                                    ObjectMapper objectMapper) {
-        this.users = users; this.sessions = sessions; this.refreshTokens = refreshTokens; this.idempotency = idempotency;
+        this.users = users; this.roles = roles; this.sessions = sessions; this.refreshTokens = refreshTokens; this.idempotency = idempotency;
         this.passwordEncoder = passwordEncoder; this.sensitiveValues = sensitiveValues; this.jwtService = jwtService;
         this.audit = audit; this.objectMapper = objectMapper;
     }
@@ -52,17 +55,21 @@ public class SessionLifecycleService {
         String rawRefresh = sensitiveValues.randomOpaqueToken();
         refreshTokens.save(RefreshTokenEntity.create(session, sensitiveValues.hashToken(rawRefresh), now));
         JwtService.AccessToken access = jwtService.issue(user.getUserId(), session.getSessionId(), user.getAuthzVersion());
-        audit.record("LOGIN", user.getUserId(), user.getUserId(), session.getSessionId(), null, null, audit.details("ACCEPTED"), now);
-        return new BrowserSession(new SessionPayload(access.value(), access.expiresAt()), rawRefresh,
+        audit.record(AuditEventTaxonomy.EventType.LOGIN, user.getUserId(), user.getUserId(), session.getSessionId(), null, null,
+                audit.details(AuditEventTaxonomy.OutcomeCode.SUCCESS), now);
+        return new BrowserSession(sessionPayload(user, access, session.getSessionId()), rawRefresh,
                 sensitiveValues.randomOpaqueToken());
     }
 
     @Transactional
-    public BrowserSession refresh(String rawRefresh, UUID requestId) {
+    public BrowserSession refresh(String rawRefresh, UUID requestId, UUID expectedBrowserSessionId) {
         Instant now = Instant.now();
         RefreshTokenEntity source = refreshTokens.findLockedByTokenHash(sensitiveValues.hashToken(rawRefresh))
                 .orElseThrow(ApiException::refreshInvalid);
         AuthSessionEntity session = source.getSession();
+        if (expectedBrowserSessionId != null && !expectedBrowserSessionId.equals(session.getSessionId())) {
+            throw ApiException.refreshInvalid();
+        }
         if (!source.isUsable(now)) {
             return replayOrInvalidateFamily(source, requestId, now);
         }
@@ -73,8 +80,8 @@ public class SessionLifecycleService {
         }
         if (idempotency.findLiveForSessionRequest(session.getSessionId(), requestId, now).isPresent()) {
             revokeFamily(source.getFamilyId(), "REFRESH_REQUEST_ID_REUSE", now);
-            audit.record("REFRESH_REUSE", user.getUserId(), user.getUserId(), session.getSessionId(), null, null,
-                    audit.details("REJECTED"), now);
+            audit.record(AuditEventTaxonomy.EventType.REFRESH_REUSE, user.getUserId(), user.getUserId(), session.getSessionId(), null, null,
+                    audit.details(AuditEventTaxonomy.OutcomeCode.DENIED), now);
             throw ApiException.refreshInvalid();
         }
         String nextRawRefresh = sensitiveValues.randomOpaqueToken();
@@ -84,10 +91,11 @@ public class SessionLifecycleService {
         session.seen(now);
         JwtService.AccessToken access = jwtService.issue(user.getUserId(), session.getSessionId(), user.getAuthzVersion());
         String csrf = sensitiveValues.randomOpaqueToken();
-        BrowserSession result = new BrowserSession(new SessionPayload(access.value(), access.expiresAt()), nextRawRefresh, csrf);
+        BrowserSession result = new BrowserSession(sessionPayload(user, access, session.getSessionId()), nextRawRefresh, csrf);
         try {
             byte[] replay = sensitiveValues.encrypt(objectMapper.writeValueAsBytes(new RefreshReplay(
-                    result.session().accessToken(), result.session().expiresAt(), nextRawRefresh, csrf)));
+                    result.session().accessToken(), result.session().expiresAt(), result.session().roles(),
+                    result.session().browserSessionId(), nextRawRefresh, csrf)));
             idempotency.save(RefreshIdempotencyEntity.create(session.getSessionId(), source.getRefreshTokenId(), requestId, replay, now));
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to preserve refresh retry result.", exception);
@@ -96,9 +104,12 @@ public class SessionLifecycleService {
     }
 
     @Transactional
-    public void logout(String rawRefresh) {
+    public void logout(String rawRefresh, UUID expectedBrowserSessionId) {
         RefreshTokenEntity token = refreshTokens.findLockedByTokenHash(sensitiveValues.hashToken(rawRefresh))
                 .orElseThrow(ApiException::refreshInvalid);
+        if (expectedBrowserSessionId != null && !expectedBrowserSessionId.equals(token.getSession().getSessionId())) {
+            throw ApiException.refreshInvalid();
+        }
         if (!token.isUsable(Instant.now())) throw ApiException.refreshInvalid();
         revokeSessionEntity(token.getSession(), "LOGOUT", Instant.now());
     }
@@ -118,15 +129,18 @@ public class SessionLifecycleService {
                 .map(entry -> decryptReplay(entry))
                 .orElseGet(() -> {
                     revokeFamily(source.getFamilyId(), "REFRESH_REUSE", now);
-                    audit.record("REFRESH_REUSE", source.getSession().getUser().getUserId(), source.getSession().getUser().getUserId(),
-                            source.getSession().getSessionId(), null, null, audit.details("REJECTED"), now);
+                    audit.record(AuditEventTaxonomy.EventType.REFRESH_REUSE,
+                            source.getSession().getUser().getUserId(), source.getSession().getUser().getUserId(),
+                            source.getSession().getSessionId(), null, null,
+                            audit.details(AuditEventTaxonomy.OutcomeCode.DENIED), now);
                     throw ApiException.refreshInvalid();
                 });
     }
     private BrowserSession decryptReplay(RefreshIdempotencyEntity entry) {
         try {
             RefreshReplay replay = objectMapper.readValue(sensitiveValues.decrypt(entry.getResponseCiphertext()), RefreshReplay.class);
-            return new BrowserSession(new SessionPayload(replay.accessToken(), replay.expiresAt()), replay.refreshToken(), replay.csrfToken());
+            return new BrowserSession(new SessionPayload(replay.accessToken(), replay.expiresAt(),
+                    replay.roles() == null ? List.of() : replay.roles(), replay.browserSessionId()), replay.refreshToken(), replay.csrfToken());
         } catch (Exception exception) {
             throw ApiException.refreshInvalid();
         }
@@ -139,12 +153,17 @@ public class SessionLifecycleService {
         session.revoke(reason, now);
         refreshTokens.findActiveByFamilyId(session.getFamilyId()).forEach(token -> token.revoke(reason, now));
     }
+    private SessionPayload sessionPayload(UserEntity user, JwtService.AccessToken access, UUID browserSessionId) {
+        return new SessionPayload(access.value(), access.expiresAt(), roles.findActiveRoleCodesByUserId(user.getUserId()).stream().sorted().toList(),
+                browserSessionId);
+    }
     private String sanitizeDeviceLabel(String label) {
         String sanitized = label == null ? "Web browser" : label.replaceAll("[\\r\\n\\t]", " ").trim();
         return sanitized.isBlank() ? "Web browser" : sanitized.substring(0, Math.min(sanitized.length(), 120));
     }
 
-    public record SessionPayload(String accessToken, Instant expiresAt) { }
+    public record SessionPayload(String accessToken, Instant expiresAt, List<String> roles, UUID browserSessionId) { }
     public record BrowserSession(SessionPayload session, String refreshToken, String csrfToken) { }
-    private record RefreshReplay(String accessToken, Instant expiresAt, String refreshToken, String csrfToken) { }
+    private record RefreshReplay(String accessToken, Instant expiresAt, List<String> roles, UUID browserSessionId,
+                                 String refreshToken, String csrfToken) { }
 }

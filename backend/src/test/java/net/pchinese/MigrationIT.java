@@ -7,6 +7,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.DriverManager;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -17,15 +18,30 @@ class MigrationIT {
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
 
     @Test
-    void cleanPostgresDatabaseAppliesTheF01SchemaAndConstraints() throws Exception {
-        Flyway flyway = Flyway.configure().dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword()).load();
+    void cleanPostgresDatabaseAppliesTheCanonicalSupabaseSchemaAndConstraints() throws Exception {
+        String migrations = Path.of(System.getProperty("user.dir"), "..", "supabase", "migrations")
+                .normalize().toAbsolutePath().toString().replace('\\', '/');
+        Flyway flyway = Flyway.configure().dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .locations("filesystem:" + migrations).sqlMigrationPrefix("").sqlMigrationSeparator("_").load();
         assertEquals(1, flyway.migrate().migrationsExecuted);
         try (var connection = DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
              var tables = connection.getMetaData().getTables(null, null, "auth_sessions", new String[] {"TABLE"})) {
             assertTrue(tables.next());
+            try (var profileColumns = connection.getMetaData().getColumns(null, null, "users", "daily_goal_minutes")) {
+                assertTrue(profileColumns.next());
+            }
+            try (var statement = connection.createStatement();
+                 var constraints = statement.executeQuery("""
+                         select pg_get_constraintdef(oid)
+                         from pg_constraint
+                         where conname = 'ck_users_target_hsk_level'
+                         """)) {
+                assertTrue(constraints.next());
+                assertTrue(constraints.getString(1).contains("target_hsk_level BETWEEN 1 AND 6"));
+            }
             try (var indexes = connection.getMetaData().getIndexInfo(null, null, "user_roles", false, false)) {
                 boolean foundActiveRoleIndex = false;
-                while (indexes.next()) foundActiveRoleIndex |= "user_roles_active_role_unique".equalsIgnoreCase(indexes.getString("INDEX_NAME"));
+                while (indexes.next()) foundActiveRoleIndex |= "uq_user_roles_active_grant".equalsIgnoreCase(indexes.getString("INDEX_NAME"));
                 assertTrue(foundActiveRoleIndex);
             }
         }

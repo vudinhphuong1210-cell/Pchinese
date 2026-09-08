@@ -166,5 +166,10 @@ content and provider information.
 | Projection | Fields allowed |
 | --- | --- |
 | Auth session response | Access-session metadata; raw refresh only through protected platform mechanism, never normal JSON persistence/logging |
-| Admin account-management projection | Exact target ID, active ADMIN role state and locked/unlocked access state only |
+| Admin user-directory projection | Permitted `accountName` (owner-set name or “Chưa đặt tên”), account UUID, lifecycle state and active ADMIN role only; server-paginated with no email, other profile fields, session or learning data |
 | Public error | Stable code, safe message, correlation ID; no account-existence, target-private or credential detail |
+
+Browser multi-account routing does not add a persistent entity or schema field. The existing
+`auth_sessions.session_id` is returned as a non-credential browser-session selector. Web cookies
+are named from that UUID and a tab keeps only the selector in `sessionStorage`; the raw refresh
+credential remains HttpOnly and the CSRF value remains cookie/header-bound.

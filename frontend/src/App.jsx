@@ -7,6 +7,8 @@ import { VerifyEmailScreen } from './features/auth/VerifyEmailScreen.jsx';
 import { ForgotPasswordForm } from './features/auth/ForgotPasswordForm.jsx';
 import { ResetPasswordForm } from './features/auth/ResetPasswordForm.jsx';
 import { AccountRolesTab } from './features/admin/AccountRolesTab.jsx';
+import { SystemActivityTab } from './features/admin/SystemActivityTab.jsx';
+import { SettingsPage } from './features/settings/SettingsPage.jsx';
 import { authSessionStore } from './features/auth/authSessionStore.js';
 import { authApi } from './api/auth.js';
 
@@ -28,9 +30,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    void authApi.refresh()
+      .catch(() => {
+        // A missing, expired, or revoked refresh cookie is a normal guest
+        // state. The HTTP layer has already cleared any stale memory state.
+      })
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const action = params.get('auth');
     const token = params.get('token');
+    if (action === 'login') {
+      setActiveTab('auth');
+      setAuthView('login');
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
     if (token && (action === 'verify' || action === 'reset')) {
       setActiveTab('auth');
       setAuthView(action);
@@ -44,6 +60,12 @@ export default function App() {
     localStorage.setItem('pchinese_theme', currentTheme);
   }, [currentTheme]);
 
+  useEffect(() => {
+    if ((activeTab === 'admin' || activeTab === 'admin-audit') && !authState.isAdmin) {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, authState.isAdmin]);
+
   const handleLogout = async () => {
     try {
       await authApi.logout();
@@ -54,19 +76,31 @@ export default function App() {
     }
   };
 
+  const handleAddAccount = () => {
+    const loginUrl = `${window.location.pathname}?auth=login`;
+    window.open(loginUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleSelectTab = (tab) => {
+    if ((tab === 'admin' || tab === 'admin-audit') && !authState.isAdmin) {
+      setActiveTab('dashboard');
+      return;
+    }
+    setActiveTab(tab);
+    if (tab === 'auth') setAuthView('login');
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col lg:flex-row antialiased font-sans">
       {/* Sidebar Desktop/Responsive */}
       <Sidebar
         activeTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          if (tab === 'auth') setAuthView('login');
-        }}
+        onSelectTab={handleSelectTab}
         currentTheme={currentTheme}
         onSelectTheme={setCurrentTheme}
         authState={authState}
         onLogout={handleLogout}
+        onAddAccount={handleAddAccount}
       />
 
       {/* Main Workspace */}
@@ -109,9 +143,17 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'admin' && (
+        {activeTab === 'settings' && <SettingsPage />}
+
+        {activeTab === 'admin' && authState.isAdmin && (
           <div className="flex justify-center py-6">
             <AccountRolesTab />
+          </div>
+        )}
+
+        {activeTab === 'admin-audit' && authState.isAdmin && (
+          <div className="flex justify-center py-6">
+            <SystemActivityTab />
           </div>
         )}
       </main>
