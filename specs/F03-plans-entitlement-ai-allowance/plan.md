@@ -52,7 +52,8 @@ specs/F03-plans-entitlement-ai-allowance/
    endpoints.
 3. Centralize `reserveOrReuse`, `succeed` and `refundOnce` in an entitlement application
    service. It locks the active entitlement, rolls the cycle server-side, checks quota and binds a
-   `clientRequestId` to a server-computed feature/owned-operation fingerprint.
+   `clientRequestId` to an immutable HMAC/SHA-256 fingerprint of the server-controlled feature and
+   owned-operation identifier.
 4. Allow only F08 actual assessment and F11 eligible reply requests to consume one unit. Same
    fingerprint reuses result; ID reuse for a different activity/fingerprint returns safe
    `409 IDEMPOTENCY_CONFLICT`; post-reservation failure maps once to `FAILED_REFUNDED`.

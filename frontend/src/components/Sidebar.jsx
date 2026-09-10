@@ -25,6 +25,7 @@ export function Sidebar({
   onAddAccount,
   isCollapsed: propIsCollapsed,
   onToggleCollapse,
+  onOpenUpgradeModal,
 }) {
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(() => {
     return localStorage.getItem('pchinese_sidebar_collapsed') === 'true';
@@ -40,6 +41,14 @@ export function Sidebar({
     }
     if (onToggleCollapse) {
       onToggleCollapse(nextState);
+    }
+  };
+
+  const handleUpgradeClick = () => {
+    if (onOpenUpgradeModal) {
+      onOpenUpgradeModal();
+    } else {
+      onSelectTab('entitlement');
     }
   };
 
@@ -252,13 +261,14 @@ export function Sidebar({
         {/* Upgrade Premium Card */}
         <button
           type="button"
-          onClick={() => alert('Chức năng Nâng cấp Premium')}
+          onClick={handleUpgradeClick}
           title="Nâng cấp Premium"
           className={`${
             isCollapsed
               ? 'w-11 h-11 mx-auto justify-center rounded-xl'
               : 'w-full h-12 px-4 space-x-3 rounded-xl'
           } bg-card hover:bg-secondary/40 border border-primary/40 hover:border-primary flex items-center text-primary font-bold text-sm transition-all shadow-sm active:scale-[0.98]`}
+          data-testid="sidebar-upgrade-btn"
         >
           <Crown className="w-5 h-5 text-primary shrink-0" />
           {!isCollapsed && <span>Nâng cấp Premium</span>}

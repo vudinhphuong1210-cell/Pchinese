@@ -9,6 +9,8 @@ import { ResetPasswordForm } from './features/auth/ResetPasswordForm.jsx';
 import { AccountRolesTab } from './features/admin/AccountRolesTab.jsx';
 import { SystemActivityTab } from './features/admin/SystemActivityTab.jsx';
 import { SettingsPage } from './features/settings/SettingsPage.jsx';
+import { EntitlementPage } from './features/entitlement/EntitlementPage.jsx';
+import { PremiumUpgradeModal } from './features/entitlement/PremiumUpgradeModal.jsx';
 import { authSessionStore } from './features/auth/authSessionStore.js';
 import { authApi } from './api/auth.js';
 
@@ -16,6 +18,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [authView, setAuthView] = useState('login'); // 'login' | 'register' | 'verify' | 'forgot' | 'reset'
   const [authActionToken, setAuthActionToken] = useState('');
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [currentTheme, setCurrentTheme] = useState(() => {
     return localStorage.getItem('pchinese_theme') || 'dark-pink';
   });
@@ -101,11 +104,14 @@ export default function App() {
         authState={authState}
         onLogout={handleLogout}
         onAddAccount={handleAddAccount}
+        onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
       />
 
       {/* Main Workspace */}
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 overflow-y-auto">
         {activeTab === 'dashboard' && <DashboardPage />}
+
+        {activeTab === 'entitlement' && <EntitlementPage />}
 
         {activeTab === 'auth' && (
           <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
@@ -143,7 +149,9 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'settings' && <SettingsPage />}
+        {activeTab === 'settings' && (
+          <SettingsPage onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)} />
+        )}
 
         {activeTab === 'admin' && authState.isAdmin && (
           <div className="flex justify-center py-6">
@@ -157,6 +165,12 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Global Premium Upgrade Modal */}
+      <PremiumUpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+      />
     </div>
   );
 }

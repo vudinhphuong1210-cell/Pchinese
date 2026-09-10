@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import net.pchinese.common.api.ApiEnvelope;
+import net.pchinese.entitlement.application.EntitlementService;
 import net.pchinese.profile.application.ProfileService;
 import net.pchinese.security.UserPrincipal;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,20 +24,26 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/me")
 public class CurrentUserController {
     private final ProfileService profiles;
+    private final EntitlementService entitlementService;
 
-    public CurrentUserController(ProfileService profiles) {
+    public CurrentUserController(ProfileService profiles, EntitlementService entitlementService) {
         this.profiles = profiles;
+        this.entitlementService = entitlementService;
     }
 
     @GetMapping
     public ApiEnvelope<CurrentUserProjection> getCurrentUser(@AuthenticationPrincipal UserPrincipal actor) {
-        return ApiEnvelope.success(CurrentUserProjection.from(profiles.getCurrentProfile(actor)));
+        ProfileService.ProfileView profile = profiles.getCurrentProfile(actor);
+        EntitlementService.EntitlementSummary entitlement = entitlementService.getSafeEntitlementSummary(actor.userId());
+        return ApiEnvelope.success(CurrentUserProjection.from(profile, entitlement));
     }
 
     @PatchMapping
     public ApiEnvelope<CurrentUserProjection> updateCurrentUser(@AuthenticationPrincipal UserPrincipal actor,
                                                                  @Valid @RequestBody ProfileUpdateRequest request) {
-        return ApiEnvelope.success(CurrentUserProjection.from(profiles.update(actor, request.toCommand())));
+        ProfileService.ProfileView profile = profiles.update(actor, request.toCommand());
+        EntitlementService.EntitlementSummary entitlement = entitlementService.getSafeEntitlementSummary(actor.userId());
+        return ApiEnvelope.success(CurrentUserProjection.from(profile, entitlement));
     }
 
     public record ProfileUpdateRequest(
@@ -58,9 +65,9 @@ public class CurrentUserController {
         }
     }
 
-    public record CurrentUserProjection(Profile profile) {
-        static CurrentUserProjection from(ProfileService.ProfileView profile) {
-            return new CurrentUserProjection(Profile.from(profile));
+    public record CurrentUserProjection(Profile profile, EntitlementService.EntitlementSummary entitlement) {
+        static CurrentUserProjection from(ProfileService.ProfileView profile, EntitlementService.EntitlementSummary entitlement) {
+            return new CurrentUserProjection(Profile.from(profile), entitlement);
         }
     }
 

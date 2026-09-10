@@ -60,8 +60,9 @@ class CurrentUserControllerIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.profile.nativeLanguageCode").value("vi"))
-                .andExpect(jsonPath("$.data.profile.dailyGoalMinutes").value(15))
-                .andExpect(jsonPath("$.data.entitlement").doesNotExist());
+                .andExpect(jsonPath("$.data.entitlement.planCode").value("FREE"))
+                .andExpect(jsonPath("$.data.entitlement.allowanceLimit").value(30))
+                .andExpect(jsonPath("$.data.entitlement.remainingUnits").value(30));
 
         mockMvc.perform(patch("/api/v1/me").header("Authorization", "Bearer " + learner.accessToken())
                         .contentType("application/json").content("""

@@ -24,13 +24,15 @@ public class AccountLifecycleService {
     private final AuthActionTokenDelivery delivery;
     private final AuthAuditService audit;
     private final SessionLifecycleService sessions;
+    private final net.pchinese.entitlement.application.EntitlementProvisioningService entitlementProvisioning;
 
     public AccountLifecycleService(UserRepository users, AuthActionTokenRepository actionTokens, PasswordEncoder passwordEncoder,
                                    PasswordPolicy passwordPolicy, SensitiveValueService sensitiveValues, AuthActionTokenDelivery delivery,
-                                   AuthAuditService audit, SessionLifecycleService sessions) {
+                                   AuthAuditService audit, SessionLifecycleService sessions,
+                                   net.pchinese.entitlement.application.EntitlementProvisioningService entitlementProvisioning) {
         this.users = users; this.actionTokens = actionTokens; this.passwordEncoder = passwordEncoder;
         this.passwordPolicy = passwordPolicy; this.sensitiveValues = sensitiveValues; this.delivery = delivery;
-        this.audit = audit; this.sessions = sessions;
+        this.audit = audit; this.sessions = sessions; this.entitlementProvisioning = entitlementProvisioning;
     }
 
     @Transactional
@@ -65,6 +67,7 @@ public class AccountLifecycleService {
         if (user.isActiveVerified()) throw ApiException.conflict("The verification credential cannot be used.");
         Instant now = Instant.now();
         user.activate(now); token.consume(now);
+        entitlementProvisioning.ensureFreeEntitlement(user.getUserId());
         audit.record(AuditEventTaxonomy.EventType.EMAIL_VERIFIED, user.getUserId(), user.getUserId(), null, null, null,
                 audit.details(AuditEventTaxonomy.OutcomeCode.SUCCESS), now);
     }

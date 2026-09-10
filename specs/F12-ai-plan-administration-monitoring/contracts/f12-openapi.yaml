@@ -1,0 +1,550 @@
+openapi: 3.1.0
+info:
+  title: Pchinese F12 AI Administration API
+  version: 1.0.0-design
+  description: >
+    ADMIN-only aggregate operations for AI plan policies, reports and in-dashboard monitoring.
+    All public responses use the Pchinese success/data/error/meta envelope. No path returns
+    a learner, event-level AI activity, prompt, reply, recording, transcript, provider payload
+    or credential.
+servers:
+  - url: /api/v1
+tags:
+  - name: AI Administration
+paths:
+  /admin/ai/plans:
+    get:
+      tags: [AI Administration]
+      operationId: listAiPlanPolicies
+      summary: List the current and retired Free/Premium policy summaries
+      responses:
+        '200': { $ref: '#/components/responses/PlanListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/ai/plans/{planCode}/revisions:
+    parameters:
+      - $ref: '#/components/parameters/PlanCode'
+    get:
+      tags: [AI Administration]
+      operationId: listAiPlanPolicyRevisions
+      summary: Read paginated immutable revisions for one logical plan
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/PolicyRevisionPageResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [AI Administration]
+      operationId: publishAiPlanPolicyRevision
+      summary: Atomically publish a complete prospective policy revision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishPolicyRevisionRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/PolicyRevisionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /admin/ai/plans/{planCode}/retire:
+    parameters:
+      - $ref: '#/components/parameters/PlanCode'
+    post:
+      tags: [AI Administration]
+      operationId: retireAiPlanPolicy
+      summary: Retire a plan from future policy selection without changing existing entitlements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RetirePlanRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/PolicyRevisionResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /admin/ai/usage-report:
+    get:
+      tags: [AI Administration]
+      operationId: getAiUsageReport
+      summary: Read a bounded aggregate AI report
+      parameters:
+        - $ref: '#/components/parameters/FromInclusive'
+        - $ref: '#/components/parameters/ToExclusive'
+        - name: planCode
+          in: query
+          schema: { $ref: '#/components/schemas/PlanCode' }
+        - name: policyVersionId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: capability
+          in: query
+          schema: { $ref: '#/components/schemas/AiCapability' }
+      responses:
+        '200': { $ref: '#/components/responses/UsageReportResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/ai/monitoring-rules:
+    get:
+      tags: [AI Administration]
+      operationId: listAiMonitoringRules
+      summary: List the administrator-visible monitoring rules
+      responses:
+        '200': { $ref: '#/components/responses/MonitoringRuleListResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [AI Administration]
+      operationId: createAiMonitoringRule
+      summary: Create an enabled or disabled aggregate monitoring rule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MonitoringRuleWriteRequest' }
+      responses:
+        '201': { $ref: '#/components/responses/MonitoringRuleResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/ai/monitoring-rules/{ruleId}:
+    parameters:
+      - name: ruleId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      tags: [AI Administration]
+      operationId: updateAiMonitoringRule
+      summary: Replace a monitoring rule with expected-version conflict protection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MonitoringRuleUpdateRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/MonitoringRuleResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /admin/ai/alerts:
+    get:
+      tags: [AI Administration]
+      operationId: listAiMonitoringAlerts
+      summary: List paginated aggregate monitoring alerts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: state
+          in: query
+          schema: { $ref: '#/components/schemas/AlertState' }
+      responses:
+        '200': { $ref: '#/components/responses/AlertPageResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/ai/alerts/{alertId}/acknowledgements:
+    parameters:
+      - name: alertId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [AI Administration]
+      operationId: acknowledgeAiMonitoringAlert
+      summary: Record a non-suppressing acknowledgement for an open alert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AcknowledgeAlertRequest' }
+      responses:
+        '200': { $ref: '#/components/responses/AlertResponse' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/StateConflict' }
+  /admin/ai/audit-events:
+    get:
+      tags: [AI Administration]
+      operationId: listAiAdministrationAuditEvents
+      summary: Read paginated safe AI-administration audit history
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200': { $ref: '#/components/responses/AuditPageResponse' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    PlanCode:
+      name: planCode
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/PlanCode' }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    PageSize:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+    FromInclusive:
+      name: fromInclusive
+      in: query
+      required: true
+      description: UTC instant, inclusive; the selected range must be within the last four months.
+      schema: { type: string, format: date-time }
+    ToExclusive:
+      name: toExclusive
+      in: query
+      required: true
+      description: UTC instant, exclusive; the selected range must not exceed 50 days.
+      schema: { type: string, format: date-time }
+  responses:
+    PlanListResponse:
+      description: Current plan policy summaries
+      content: { application/json: { schema: { $ref: '#/components/schemas/PlanListEnvelope' } } }
+    PolicyRevisionPageResponse:
+      description: Immutable policy revisions
+      content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRevisionPageEnvelope' } } }
+    PolicyRevisionResponse:
+      description: Current policy revision after a successful command
+      content: { application/json: { schema: { $ref: '#/components/schemas/PolicyRevisionEnvelope' } } }
+    UsageReportResponse:
+      description: Aggregate report with coverage and freshness, never event-level activity
+      content: { application/json: { schema: { $ref: '#/components/schemas/UsageReportEnvelope' } } }
+    MonitoringRuleListResponse:
+      description: Monitoring rule summaries
+      content: { application/json: { schema: { $ref: '#/components/schemas/MonitoringRuleListEnvelope' } } }
+    MonitoringRuleResponse:
+      description: Monitoring rule after a successful command
+      content: { application/json: { schema: { $ref: '#/components/schemas/MonitoringRuleEnvelope' } } }
+    AlertPageResponse:
+      description: Paginated aggregate alert summaries
+      content: { application/json: { schema: { $ref: '#/components/schemas/AlertPageEnvelope' } } }
+    AlertResponse:
+      description: Alert after acknowledgement
+      content: { application/json: { schema: { $ref: '#/components/schemas/AlertEnvelope' } } }
+    AuditPageResponse:
+      description: Safe AI administration audit summaries
+      content: { application/json: { schema: { $ref: '#/components/schemas/AuditPageEnvelope' } } }
+    ValidationError:
+      description: Invalid or out-of-range request
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthenticated:
+      description: Missing, expired, revoked or invalid credential
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Caller is not currently authorized as ADMIN
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Requested administrative resource is absent
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    StateConflict:
+      description: Stale version or invalid current state; no command was applied
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+  schemas:
+    PlanCode:
+      type: string
+      enum: [FREE, PREMIUM]
+    AiCapability:
+      type: string
+      enum: [AI_BUDDY, SHADOWING_ASSESSMENT]
+    PolicyStatus:
+      type: string
+      enum: [PUBLISHED, SUPERSEDED, RETIRED]
+    AvailabilityState:
+      type: string
+      enum: [ACTIVE, HIDDEN]
+      description: Catalogue state only; it does not grant, sell or enroll a learner.
+    PriceInterval:
+      type: string
+      enum: [MONTH, YEAR]
+    AllowancePeriod:
+      type: string
+      enum: [DAY, MONTH]
+    PolicyRevision:
+      type: object
+      required: [id, planCode, revisionNumber, status, displayName, benefits, availabilityState, priceAmount, currency, priceInterval, allowanceUnits, allowancePeriod, version, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        planCode: { $ref: '#/components/schemas/PlanCode' }
+        revisionNumber: { type: integer, minimum: 1 }
+        status: { $ref: '#/components/schemas/PolicyStatus' }
+        displayName: { type: string, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        benefits: { type: array, maxItems: 20, items: { type: string, maxLength: 300 } }
+        availabilityState: { $ref: '#/components/schemas/AvailabilityState' }
+        priceAmount: { type: number, minimum: 0 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        priceInterval: { $ref: '#/components/schemas/PriceInterval' }
+        displayLabel: { type: string, maxLength: 120 }
+        allowanceUnits: { type: integer, minimum: 0 }
+        allowancePeriod: { $ref: '#/components/schemas/AllowancePeriod' }
+        version: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        retiredAt: { type: string, format: date-time }
+    PublishPolicyRevisionRequest:
+      type: object
+      required: [expectedCurrentVersion, reason, displayName, benefits, availabilityState, priceAmount, currency, priceInterval, allowanceUnits, allowancePeriod]
+      properties:
+        expectedCurrentVersion: { type: integer, minimum: 0 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+        displayName: { type: string, minLength: 1, maxLength: 120 }
+        description: { type: string, maxLength: 2000 }
+        benefits: { type: array, maxItems: 20, items: { type: string, minLength: 1, maxLength: 300 } }
+        availabilityState: { $ref: '#/components/schemas/AvailabilityState' }
+        priceAmount: { type: number, minimum: 0 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        priceInterval: { $ref: '#/components/schemas/PriceInterval' }
+        displayLabel: { type: string, maxLength: 120 }
+        allowanceUnits: { type: integer, minimum: 0 }
+        allowancePeriod: { $ref: '#/components/schemas/AllowancePeriod' }
+    RetirePlanRequest:
+      type: object
+      required: [expectedCurrentVersion, reason]
+      properties:
+        expectedCurrentVersion: { type: integer, minimum: 0 }
+        reason: { type: string, minLength: 1, maxLength: 500 }
+    UsageReport:
+      type: object
+      required: [fromInclusive, toExclusive, measuredThroughAt, partialData, buckets]
+      properties:
+        fromInclusive: { type: string, format: date-time }
+        toExclusive: { type: string, format: date-time }
+        measuredThroughAt: { type: string, format: date-time }
+        partialData: { type: boolean }
+        buckets:
+          type: array
+          items: { $ref: '#/components/schemas/UsageBucket' }
+    UsageBucket:
+      type: object
+      required: [planCode, policyVersionId, capability, outcome, requestCount, reservedUnits, usedUnits, refundedUnits, providerMetering]
+      properties:
+        planCode: { $ref: '#/components/schemas/PlanCode' }
+        policyVersionId: { type: string, format: uuid }
+        capability: { $ref: '#/components/schemas/AiCapability' }
+        outcome: { type: string, enum: [SUCCEEDED, QUOTA_DENIED, FAILED_REFUNDED, FAILED_CONSUMED] }
+        requestCount: { type: integer, minimum: 0 }
+        reservedUnits: { type: integer, minimum: 0 }
+        usedUnits: { type: integer, minimum: 0 }
+        refundedUnits: { type: integer, minimum: 0 }
+        providerMetering: { $ref: '#/components/schemas/ProviderMeteringAggregate' }
+        responseTime: { $ref: '#/components/schemas/ResponseTimeAggregate' }
+    ProviderMeteringAggregate:
+      type: object
+      required: [reportedSampleCount, unavailableSampleCount, costByCurrency]
+      properties:
+        reportedSampleCount: { type: integer, minimum: 0 }
+        unavailableSampleCount: { type: integer, minimum: 0 }
+        inputTokens: { anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }] }
+        outputTokens: { anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }] }
+        totalTokens: { anyOf: [{ type: integer, minimum: 0 }, { type: 'null' }] }
+        costByCurrency:
+          type: array
+          items:
+            type: object
+            required: [currency, amount]
+            properties:
+              currency: { type: string, pattern: '^[A-Z]{3}$' }
+              amount: { type: number, minimum: 0 }
+    ResponseTimeAggregate:
+      type: object
+      required: [sampleCount]
+      properties:
+        sampleCount: { type: integer, minimum: 0 }
+        averageMilliseconds: { anyOf: [{ type: number, minimum: 0 }, { type: 'null' }] }
+    MonitoringMetric:
+      type: string
+      enum: [TOKEN_VOLUME, ESTIMATED_COST, REQUEST_VOLUME, QUOTA_DENIAL_RATE, FAILURE_RATE, RESPONSE_TIME]
+    EvaluationWindow:
+      type: string
+      enum: [ONE_HOUR, TWENTY_FOUR_HOURS]
+    MonitoringRule:
+      type: object
+      required: [id, metric, threshold, evaluationWindow, enabled, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        metric: { $ref: '#/components/schemas/MonitoringMetric' }
+        threshold: { type: number, minimum: 0 }
+        evaluationWindow: { $ref: '#/components/schemas/EvaluationWindow' }
+        planCode: { $ref: '#/components/schemas/PlanCode' }
+        policyVersionId: { type: string, format: uuid }
+        capability: { $ref: '#/components/schemas/AiCapability' }
+        enabled: { type: boolean }
+        version: { type: integer, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MonitoringRuleWriteRequest:
+      type: object
+      required: [metric, threshold, evaluationWindow, enabled]
+      properties:
+        metric: { $ref: '#/components/schemas/MonitoringMetric' }
+        threshold: { type: number, minimum: 0 }
+        evaluationWindow: { $ref: '#/components/schemas/EvaluationWindow' }
+        planCode: { $ref: '#/components/schemas/PlanCode' }
+        policyVersionId: { type: string, format: uuid }
+        capability: { $ref: '#/components/schemas/AiCapability' }
+        enabled: { type: boolean }
+    MonitoringRuleUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/MonitoringRuleWriteRequest'
+        - type: object
+          required: [expectedVersion]
+          properties:
+            expectedVersion: { type: integer, minimum: 0 }
+    AlertState:
+      type: string
+      enum: [OPEN, ACKNOWLEDGED, RESOLVED]
+    MonitoringAlert:
+      type: object
+      required: [id, ruleId, state, metric, threshold, latestValue, partialData, firstSeenAt, lastEvaluatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        ruleId: { type: string, format: uuid }
+        state: { $ref: '#/components/schemas/AlertState' }
+        metric: { $ref: '#/components/schemas/MonitoringMetric' }
+        threshold: { type: number, minimum: 0 }
+        latestValue: { type: number, minimum: 0 }
+        partialData: { type: boolean }
+        firstSeenAt: { type: string, format: date-time }
+        lastEvaluatedAt: { type: string, format: date-time }
+        acknowledgedAt: { type: string, format: date-time }
+        resolvedAt: { type: string, format: date-time }
+        version: { type: integer, minimum: 0 }
+    AcknowledgeAlertRequest:
+      type: object
+      required: [expectedVersion]
+      properties:
+        expectedVersion: { type: integer, minimum: 0 }
+        note: { type: string, maxLength: 500 }
+    AiAdminAuditEvent:
+      type: object
+      required: [eventType, targetType, occurredAt, outcome]
+      properties:
+        eventType: { type: string, enum: [POLICY_PUBLISHED, PLAN_RETIRED, MONITORING_RULE_CHANGED, ALERT_ACKNOWLEDGED] }
+        targetType: { type: string, enum: [PLAN_POLICY, MONITORING_RULE, MONITORING_ALERT] }
+        occurredAt: { type: string, format: date-time }
+        outcome: { type: string, enum: [SUCCESS] }
+        reasonOrNote: { type: string, maxLength: 500 }
+    PageMeta:
+      type: object
+      required: [page, size, totalItems, totalPages]
+      properties:
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1 }
+        totalItems: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
+    Meta:
+      type: object
+      required: [correlationId]
+      properties:
+        correlationId: { type: string, format: uuid }
+        page: { $ref: '#/components/schemas/PageMeta' }
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, AUTHORIZATION_DENIED, RESOURCE_NOT_FOUND, STATE_CONFLICT] }
+        message: { type: string }
+    ErrorEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: false }
+        data: { type: 'null' }
+        error: { $ref: '#/components/schemas/Error' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    PlanListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/PolicyRevision' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    PolicyRevisionEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/PolicyRevision' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    PolicyRevisionPageEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/PolicyRevision' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    UsageReportEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/UsageReport' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    MonitoringRuleListEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/MonitoringRule' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    MonitoringRuleEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/MonitoringRule' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AlertEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { $ref: '#/components/schemas/MonitoringAlert' }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AlertPageEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/MonitoringAlert' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+    AuditPageEnvelope:
+      type: object
+      required: [success, data, error, meta]
+      properties:
+        success: { const: true }
+        data: { type: array, items: { $ref: '#/components/schemas/AiAdminAuditEvent' } }
+        error: { type: 'null' }
+        meta: { $ref: '#/components/schemas/Meta' }
+security:
+  - bearerAuth: []

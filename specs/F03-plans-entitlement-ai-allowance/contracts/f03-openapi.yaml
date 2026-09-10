@@ -68,6 +68,10 @@ components:
 security:
   - bearerAuth: []
 x-internal-domain-contract:
+  fingerprint:
+    algorithm: HMAC-SHA-256
+    input: server-controlled feature and owned operation identifier
+    privacy: excludes raw prompt, transcript, and audio
   reserveOrReuse:
     input: [authenticatedUser, featureType, ownedOperationId, clientRequestId]
     result: RESERVED or existing event; quota/conflict error otherwise

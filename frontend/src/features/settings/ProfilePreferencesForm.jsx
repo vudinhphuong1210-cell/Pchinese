@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { getProfile, updateProfile } from '../../api/profile.js';
 
-export function ProfilePreferencesForm() {
+export function ProfilePreferencesForm({ onOpenUpgradeModal }) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [fetchError, setFetchError] = useState(null);
@@ -255,9 +255,6 @@ export function ProfilePreferencesForm() {
               Cập nhật ngôn ngữ, timezone và mục tiêu học tập của bạn
             </p>
           </div>
-          <div className="text-xs font-mono px-3 py-1 bg-secondary rounded-full border border-border text-muted-foreground">
-            Phiên bản: v{profileVersion}
-          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -470,11 +467,23 @@ export function ProfilePreferencesForm() {
           className="p-6 bg-card border border-border rounded-2xl shadow-sm space-y-3"
           data-testid="entitlement-summary-card"
         >
-          <div className="flex items-center space-x-2 text-foreground font-bold">
-            <ShieldCheck className="w-5 h-5 text-primary" />
-            <span>Gói đăng ký & Quyền sử dụng</span>
+          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+            <div className="flex items-center space-x-2 text-foreground font-bold">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              <span>Gói đăng ký & Quyền sử dụng</span>
+            </div>
+            {onOpenUpgradeModal && (
+              <button
+                type="button"
+                onClick={onOpenUpgradeModal}
+                className="text-xs font-bold text-primary hover:underline flex items-center space-x-1"
+                data-testid="view-full-entitlement-btn"
+              >
+                <span>Xem chi tiết & Nâng cấp Premium</span>
+              </button>
+            )}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
             <div className="p-3 bg-secondary/50 rounded-xl border border-border/60">
               <span className="text-xs text-muted-foreground font-medium block">Gói hiện tại</span>
               <span className="text-sm font-bold text-primary tracking-wide">

@@ -90,7 +90,6 @@ describe('ProfilePreferencesForm Component', () => {
     });
 
     expect(screen.getByTestId('profile-success-alert')).toBeInTheDocument();
-    expect(screen.getByText('Phiên bản: v2')).toBeInTheDocument();
   });
 
   test('displays conflict alert on 409 STATE_CONFLICT and supports profile reload', async () => {
@@ -130,7 +129,6 @@ describe('ProfilePreferencesForm Component', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('profile-conflict-alert')).not.toBeInTheDocument();
     });
-    expect(screen.getByText('Phiên bản: v2')).toBeInTheDocument();
   });
 
   test('shows field error when display name is empty', async () => {

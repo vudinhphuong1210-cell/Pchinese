@@ -10,14 +10,14 @@ description: "Actionable implementation tasks for F03 Plans, Entitlement, and AI
 
 ## Phase 1: Setup
 
-- [ ] T001 Create the entitlement and allowance package layout in backend/src/main/java/net/pchinese/entitlement/ and backend/src/main/java/net/pchinese/allowance/.
+- [x] T001 Create the entitlement and allowance package layout in backend/src/main/java/net/pchinese/entitlement/ and backend/src/main/java/net/pchinese/allowance/.
 - [ ] T002 [P] Add the learner account allowance-summary placeholder to frontend/src/features/settings/AllowanceSummaryCard.jsx.
 
 ## Phase 2: Foundational
 
-- [ ] T003 Add subscription_plans, user_entitlements and ai_usage_events schema, constraints and indexes from DATA_short.md in backend/src/main/resources/db/migration/V003__f03_entitlements.sql.
-- [ ] T004 [P] Implement JPA entities and repositories with active-entitlement locking in backend/src/main/java/net/pchinese/entitlement/persistence/ and backend/src/main/java/net/pchinese/allowance/persistence/.
-- [ ] T005 Implement automatic Free-entitlement provisioning from F01 activation in backend/src/main/java/net/pchinese/entitlement/application/EntitlementProvisioningService.java.
+- [x] T003 Verify subscription_plans, user_entitlements and ai_usage_events schema in DATA_short.md and initial migration (no redundant migration file needed).
+- [x] T004 [P] Implement JPA entities and repositories with active-entitlement locking in backend/src/main/java/net/pchinese/entitlement/persistence/ and backend/src/main/java/net/pchinese/allowance/persistence/.
+- [x] T005 Implement automatic Free-entitlement provisioning from F01 activation in backend/src/main/java/net/pchinese/entitlement/application/EntitlementProvisioningService.java.
 
 ## Phase 3: User Story 1 - Receive and understand Free access (Priority: P1) MVP
 
@@ -25,9 +25,9 @@ description: "Actionable implementation tasks for F03 Plans, Entitlement, and AI
 
 **Independent Test**: An active learner receives one Free entitlement and sees only their 30-unit rolling-cycle summary.
 
-- [ ] T006 [P] [US1] Add entitlement-provisioning and canonical current-user safe-entitlement integration tests in backend/src/test/java/net/pchinese/profile/CurrentUserEntitlementIT.java.
-- [ ] T007 [US1] Implement rolling-cycle calculation and safe entitlement summary projection in backend/src/main/java/net/pchinese/entitlement/application/EntitlementService.java.
-- [ ] T008 [US1] After F02 T009, extend its canonical current-user projection with the safe F03 entitlement summary in backend/src/main/java/net/pchinese/profile/api/CurrentUserController.java.
+- [x] T006 [P] [US1] Add entitlement-provisioning and canonical current-user safe-entitlement integration tests in backend/src/test/java/net/pchinese/profile/CurrentUserEntitlementIT.java.
+- [x] T007 [US1] Implement rolling-cycle calculation and safe entitlement summary projection in backend/src/main/java/net/pchinese/entitlement/application/EntitlementService.java.
+- [x] T008 [US1] After F02 T009, extend its canonical current-user projection with the safe F03 entitlement summary in backend/src/main/java/net/pchinese/profile/api/CurrentUserController.java.
 - [ ] T009 [US1] Implement contract-bound allowance-summary client and learner card states in frontend/src/api/entitlement.js and frontend/src/features/settings/AllowanceSummaryCard.jsx.
 
 ## Phase 4: User Story 2 - Enforce AI allowance fairly (Priority: P1)
@@ -36,11 +36,11 @@ description: "Actionable implementation tasks for F03 Plans, Entitlement, and AI
 
 **Independent Test**: Identical AI requests charge once, exhausted requests stop before AI work and post-reservation failures refund once.
 
-- [ ] T010 [P] [US2] Add transaction and concurrency tests for quota exhaustion, reused fingerprint, changed fingerprint and one refund in backend/src/test/java/net/pchinese/allowance/AiAllowanceServiceIT.java.
-- [ ] T011 [P] [US2] Add unit tests for usage-event state transitions and 30-day rollovers in backend/src/test/java/net/pchinese/allowance/AiAllowanceServiceTest.java.
-- [ ] T012 [US2] Implement reserveOrReuse, succeed and refundOnce under one owned entitlement lock in backend/src/main/java/net/pchinese/allowance/application/AiAllowanceService.java.
-- [ ] T013 [US2] Implement an internal typed allowance command interface for F08/F11 in backend/src/main/java/net/pchinese/allowance/application/AiAllowanceCommands.java.
-- [ ] T014 [US2] Ensure no public controller exposes allowance mutation by adding API-boundary tests in backend/src/test/java/net/pchinese/allowance/AllowanceApiBoundaryTest.java.
+- [x] T010 [P] [US2] Add transaction and concurrency tests for quota exhaustion, reused fingerprint, changed fingerprint and one refund in backend/src/test/java/net/pchinese/allowance/AiAllowanceServiceIT.java.
+- [x] T011 [P] [US2] Add unit tests for usage-event state transitions and 30-day rollovers in backend/src/test/java/net/pchinese/allowance/AiAllowanceServiceTest.java.
+- [x] T012 [US2] Implement reserveOrReuse, succeed and refundOnce under one owned entitlement lock in backend/src/main/java/net/pchinese/allowance/application/AiAllowanceService.java.
+- [x] T013 [US2] Implement an internal typed allowance command interface for F08/F11 in backend/src/main/java/net/pchinese/allowance/application/AiAllowanceCommands.java.
+- [x] T014 [US2] Ensure no public controller exposes allowance mutation by adding API-boundary tests in backend/src/test/java/net/pchinese/allowance/AllowanceApiBoundaryTest.java.
 
 ## Phase 5: Polish and Cross-Cutting Concerns
 

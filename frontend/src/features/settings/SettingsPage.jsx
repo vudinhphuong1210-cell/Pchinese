@@ -2,7 +2,7 @@ import React from 'react';
 import { Settings, UserCheck } from 'lucide-react';
 import { ProfilePreferencesForm } from './ProfilePreferencesForm.jsx';
 
-export function SettingsPage() {
+export function SettingsPage({ onOpenUpgradeModal }) {
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12 font-sans" data-testid="settings-page">
       {/* Header Banner */}
@@ -29,7 +29,7 @@ export function SettingsPage() {
 
       {/* Main Settings Content */}
       <main>
-        <ProfilePreferencesForm />
+        <ProfilePreferencesForm onOpenUpgradeModal={onOpenUpgradeModal} />
       </main>
     </div>
   );
