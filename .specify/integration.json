@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "version": "0.8.13",
+=======
+  "version": "1.0.6",
+>>>>>>> 59bd84c (chore: add speckit configuration)
   "integration_state_schema": 1,
   "installed_integrations": [
     "codex",

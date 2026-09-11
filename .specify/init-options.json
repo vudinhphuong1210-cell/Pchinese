@@ -6,5 +6,10 @@
   "here": true,
   "integration": "agy",
   "script": "ps",
+<<<<<<< HEAD
   "speckit_version": "1.0.4"
 }
+=======
+  "speckit_version": "1.0.6"
+}
+>>>>>>> 59bd84c (chore: add speckit configuration)

@@ -124,4 +124,9 @@ public class UserEntitlementEntity {
         this.aiUsedUnits = Math.max(0, this.aiUsedUnits - units);
         this.updatedAt = now;
     }
+
+    public void markExpired(Instant now) {
+        this.status = EntitlementStatus.EXPIRED;
+        this.updatedAt = now;
+    }
 }

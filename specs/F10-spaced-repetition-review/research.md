@@ -4,35 +4,60 @@
 
 | Topic | Decision | Rationale |
 | --- | --- | --- |
-| Due queue | GET due returns at most 20 owner schedules where dueAt is no later than server now, ordered oldest first. | Gives predictable small batches without client-side limits. |
-| Review submission | Submit rating, clientReviewId UUID and expectedScheduleVersion. | Supports safe retry and detects stale tabs. |
-| Retry order | Resolve an existing clientReviewId first; otherwise verify version and mutate schedule/event atomically. | Exact retried requests return their original response instead of a stale error. |
-| State | LEARNING, REVIEW, RELEARNING and SUSPENDED. | Separates new, established, lapsed and inactive vocabulary. |
-| Initial intervals | AGAIN 10 minutes, HARD 1 day, GOOD 3 days, EASY 7 days. | Establishes clear beginner behavior. |
-| Later intervals | AGAIN 10 minutes and ease minus 0.20; HARD prior interval times 1.20 and ease minus 0.15; GOOD prior interval times ease; EASY prior interval times ease plus 0.15. | Keeps the policy auditable and consistent. |
-| Ease bounds | Clamp to 1.30 through 2.50. | Prevents extreme schedule growth or collapse. |
-| F09 restore | A never-reviewed schedule returns to LEARNING; otherwise REVIEW; overdue restoration is due immediately. | Preserves history while restoring learner access. |
+| Due queue batching | `GET /api/v1/srs/due` returns at most 20 learner-owned due items where `due_at <= now()`, ordered by `due_at ASC, srs_schedule_id ASC`. | Enforces bounded batching without client-side memory bloat. |
+| AGAIN card rotation | An item rated `AGAIN` during an active review session is rotated to the end of the active 20-item batch queue. | Allows the learner to re-test recall before completing the active session without waiting for full 10-minute timer. |
+| Status transitions | `LEARNING` → `REVIEW` on `GOOD`/`EASY`; `AGAIN`/`HARD` retains `LEARNING`. `REVIEW` → `RELEARNING` on `AGAIN`; `HARD`/`GOOD`/`EASY` retains `REVIEW`. `RELEARNING` → `REVIEW` on `GOOD`/`EASY`; `AGAIN`/`HARD` retains `RELEARNING`. | Implements canonical Anki SRS state machine separating new, mastered, and lapsed vocabulary. |
+| Initial review policy | On first review: `AGAIN` (10 minutes), `HARD` (1 day), `GOOD` (3 days), `EASY` (7 days). Initial ease = 2.500. | Establishes standard beginner spacing rules. |
+| Later review policy | On later reviews: `AGAIN` (10 minutes, ease -0.20); `HARD` (prior interval × 1.20, ease -0.15); `GOOD` (prior interval × prior ease); `EASY` (prior interval × (prior ease + 0.15)). | Standard SRS interval multiplier and ease factor adjustment. |
+| Ease factor bounds | Clamp `ease_factor` strictly between 1.300 and 2.500. | Prevents extreme exponential growth or infinite repetition collapse. |
+| Idempotency & retries | Submit review with `clientReviewId` (UUID) and `expectedScheduleVersion`. | Re-submitting identical `clientReviewId` returns original accepted result without duplicate events; stale version mismatch returns `409 STATE_CONFLICT` with safe latest schedule. |
+| F09 integration boundary | F09 saved-word creation creates/reuses an immediate `LEARNING` schedule due `now()`. Removal suspends schedule (`SUSPENDED`). Restoration resumes existing schedule without resetting interval, ease, or history. | Keeps vocabulary ownership in F09 while reserving schedule state and history in F10. |
+| Flashcard UI disclosure | Front: Hanzi (Simplified/Traditional) + Audio. Back: Pinyin + Vietnamese Meaning + Examples + Personal Note. | Optimal recall prompt architecture for Chinese character recognition. |
 
-## Rating Rules
+## SRS State Machine Rules
 
-Use server time and persisted schedule state only. A valid rating is AGAIN, HARD, GOOD or EASY. The response contains the new state, dueAt, interval, ease and version. The label transition policy is recorded as implementation policy with the resulting event snapshot; no client inference is accepted.
+```mermaid
+stateDiagram-v2
+    [*] --> LEARNING : F09 Save Word (due_at = now)
+    
+    state LEARNING {
+        [*] --> InitialReview
+        InitialReview --> LEARNING : AGAIN (10m) / HARD (1d)
+        InitialReview --> REVIEW : GOOD (3d) / EASY (7d)
+    }
 
-## Atomic Submission
+    state REVIEW {
+        REVIEW --> REVIEW : HARD (×1.2) / GOOD (×ease) / EASY (×(ease+0.15))
+        REVIEW --> RELEARNING : AGAIN (10m, ease -0.20)
+    }
 
-Within one database transaction:
+    state RELEARNING {
+        RELEARNING --> RELEARNING : AGAIN (10m) / HARD (×1.2)
+        RELEARNING --> REVIEW : GOOD (×ease) / EASY (×(ease+0.15))
+    }
 
-1. Locate a review event by user and clientReviewId; if found, compare request fingerprint and return the original result.
-2. Lock the owner schedule, verify expectedScheduleVersion, due eligibility and non-suspended state.
-3. Calculate next state from the configured rules.
-4. Increment schedule version and write an immutable event with before and after snapshots.
-5. Commit and return the persisted projection.
+    LEARNING --> SUSPENDED : F09 Delete Saved Word
+    REVIEW --> SUSPENDED : F09 Delete Saved Word
+    RELEARNING --> SUSPENDED : F09 Delete Saved Word
 
-If clientReviewId is reused for different schedule/rating data, return conflict. If version is stale, return 409 with a safe latest schedule projection.
+    SUSPENDED --> LEARNING : F09 Restore Word (if repetitions == 0)
+    SUSPENDED --> REVIEW : F09 Restore Word (if repetitions > 0)
+```
+
+## Atomic Review Submission
+
+Within one database transaction under pessimistic user/schedule lock:
+
+1. Check if `srs_review_events` contains an event matching `(user_id, client_review_id)`. If found, return original result projection without adding new event.
+2. Lock `srs_schedules` row by `srs_schedule_id` and `user_id`. Verify `version == expectedScheduleVersion` and `status != 'SUSPENDED'`.
+3. Calculate next `due_at`, `interval_days`, `ease_factor`, `status`, `repetitions`, and `lapses`.
+4. Increment `version`, update `srs_schedules`.
+5. Insert immutable `srs_review_events` row.
+6. Commit transaction and return updated schedule and event projections.
 
 ## Rejected Alternatives
 
-- Calculating intervals in React: creates clock skew and tamperable schedule state.
-- Deleting schedules and events when a saved word is removed: destroys learning history.
-- Accepting unbounded due limits: allows expensive queues and inconsistent UI behavior.
-- Calling AI to decide intervals: adds cost and nondeterminism to a rule-based feature.
-
+- Client-calculated SRS intervals: Allows clock tampering and inconsistent interval calculations.
+- Deleting SRS schedule on F09 word removal: Destroys learning history and repetition progress.
+- Unbounded due queue fetching: Can cause memory exhaustion under large due backlogs.
+- AI-based interval calculation: Adds latency, cost, and non-deterministic behavior to a deterministic rule engine.

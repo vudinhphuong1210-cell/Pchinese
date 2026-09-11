@@ -1,135 +1,178 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
-  title: Pchinese F10 Spaced Repetition Review API
-  version: 1.0.0-design
-  description: >
-    Design contract for deterministic server-authoritative vocabulary review.
-    All paths are authenticated and served below /api/v1. Spring Boot is the
-    only clock and scheduler; the client submits a rating and displays the
-    persisted next schedule. F10 does not call ai-service or consume F03 allowance.
-servers:
-  - url: /api/v1
-tags:
-  - name: SpacedRepetition
+  title: F10 Spaced Repetition Review API
+  version: 1.0.0
+  description: Public REST API for due queue retrieval, rating submission, and review history.
 paths:
-  /reviews/due:
+  /api/v1/srs/due:
     get:
-      tags: [SpacedRepetition]
-      summary: Get the next caller-owned due review batch
-      operationId: listDueReviews
+      summary: Retrieve due review queue for authenticated learner
+      description: Returns at most 20 learner-owned due review cards where due_at <= now(), ordered by due_at ASC.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            maximum: 20
+            minimum: 1
       responses:
         '200':
-          description: At most 20 schedules due at server now, ordered by oldest dueAt.
+          description: Due queue retrieved successfully
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/DueReviewListEnvelope' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-  /reviews/{srsScheduleId}/submit:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DueReviewCardResponse'
+                      totalDueCount:
+                        type: integer
+                        example: 5
+                  meta:
+                    type: object
+
+  /api/v1/srs/review:
     post:
-      tags: [SpacedRepetition]
-      summary: Submit an idempotent rating using optimistic schedule versioning
-      operationId: submitReview
-      parameters: [ { $ref: '#/components/parameters/SrsScheduleId' } ]
+      summary: Submit a review rating for a due schedule
+      description: Atomically updates next due state, inserts review event, and handles client idempotency.
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/ReviewSubmissionRequest' }
+            schema:
+              $ref: '#/components/schemas/SubmitReviewRequest'
       responses:
         '200':
-          description: Latest persisted schedule, or original persisted result for identical retry.
+          description: Review submitted successfully
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/ScheduleEnvelope' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '401': { $ref: '#/components/responses/Unauthenticated' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/StateConflict' }
-components:
-  securitySchemes:
-    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
-  parameters:
-    SrsScheduleId: { name: srsScheduleId, in: path, required: true, schema: { type: string, format: uuid } }
-  responses:
-    ValidationError:
-      description: Invalid rating, UUID or expected version
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
-    Unauthenticated:
-      description: Missing, expired, revoked or invalid access credential
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
-    NotFound:
-      description: Schedule is absent or not owned; no disclosure distinction
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
-    StateConflict:
-      description: Stale schedule version or a changed idempotency request; latest safe state may be returned
-      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
-  schemas:
-    ReviewSubmissionRequest:
-      type: object
-      required: [rating, clientReviewId, expectedScheduleVersion]
-      properties:
-        rating: { type: string, enum: [AGAIN, HARD, GOOD, EASY] }
-        clientReviewId: { type: string, format: uuid }
-        expectedScheduleVersion: { type: integer, minimum: 0 }
-      additionalProperties: false
-    ReviewCard:
-      type: object
-      required: [scheduleId, savedWordId, dueAt, state]
-      properties:
-        scheduleId: { type: string, format: uuid }
-        savedWordId: { type: string, format: uuid }
-        dueAt: { type: string, format: date-time }
-        state: { type: string, enum: [LEARNING, REVIEW, RELEARNING] }
-        vocabulary: { type: object }
-    SrsSchedule:
-      type: object
-      required: [scheduleId, state, dueAt, intervalMinutes, easeFactor, version]
-      properties:
-        scheduleId: { type: string, format: uuid }
-        state: { type: string, enum: [LEARNING, REVIEW, RELEARNING, SUSPENDED] }
-        dueAt: { type: string, format: date-time }
-        intervalMinutes: { type: integer, minimum: 1 }
-        easeFactor: { type: number, minimum: 1.3, maximum: 2.5 }
-        repetitions: { type: integer, minimum: 0 }
-        lapses: { type: integer, minimum: 0 }
-        version: { type: integer, minimum: 0 }
-    Meta:
-      type: object
-      required: [correlationId]
-      properties: { correlationId: { type: string, format: uuid } }
-    Error:
-      type: object
-      required: [code, message]
-      properties:
-        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT, IDEMPOTENCY_CONFLICT] }
-        message: { type: string }
-    DueReviewListEnvelope:
-      type: object
-      required: [success, data, error, meta]
-      properties:
-        success: { const: true }
-        data:
-          type: array
-          maxItems: 20
-          items: { $ref: '#/components/schemas/ReviewCard' }
-        error: { type: 'null' }
-        meta: { $ref: '#/components/schemas/Meta' }
-    ScheduleEnvelope:
-      type: object
-      required: [success, data, error, meta]
-      properties:
-        success: { const: true }
-        data: { $ref: '#/components/schemas/SrsSchedule' }
-        error: { type: 'null' }
-        meta: { $ref: '#/components/schemas/Meta' }
-    ErrorEnvelope:
-      type: object
-      required: [success, data, error, meta]
-      properties:
-        success: { const: false }
-        data: { type: 'null' }
-        error: { $ref: '#/components/schemas/Error' }
-        meta: { $ref: '#/components/schemas/Meta' }
-security:
-  - bearerAuth: []
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/SubmitReviewResponse'
+        '400':
+          description: Validation error or invalid rating
+        '404':
+          description: Schedule not found or not owned
+        '409':
+          description: State conflict or stale schedule version
 
+components:
+  schemas:
+    DueReviewCardResponse:
+      type: object
+      properties:
+        srsScheduleId:
+          type: string
+          format: uuid
+        savedWordId:
+          type: string
+          format: uuid
+        dictionaryEntryId:
+          type: string
+          format: uuid
+        simplifiedHanzi:
+          type: string
+        traditionalHanzi:
+          type: string
+        primaryPinyin:
+          type: string
+        hskLevel:
+          type: integer
+        wordType:
+          type: string
+        senses:
+          type: string
+        audioMediaAssetId:
+          type: string
+          format: uuid
+        personalNotePlaintext:
+          type: string
+        status:
+          type: string
+          enum: [LEARNING, REVIEW, RELEARNING, SUSPENDED]
+        dueAt:
+          type: string
+          format: date-time
+        intervalDays:
+          type: number
+        easeFactor:
+          type: number
+        scheduleVersion:
+          type: integer
+          format: int64
+
+    SubmitReviewRequest:
+      type: object
+      required:
+        - srsScheduleId
+        - clientReviewId
+        - rating
+        - expectedScheduleVersion
+      properties:
+        srsScheduleId:
+          type: string
+          format: uuid
+        clientReviewId:
+          type: string
+          format: uuid
+        rating:
+          type: string
+          enum: [AGAIN, HARD, GOOD, EASY]
+        expectedScheduleVersion:
+          type: integer
+          format: int64
+
+    SubmitReviewResponse:
+      type: object
+      properties:
+        srsScheduleId:
+          type: string
+          format: uuid
+        srsReviewEventId:
+          type: string
+          format: uuid
+        clientReviewId:
+          type: string
+          format: uuid
+        rating:
+          type: string
+        previousStatus:
+          type: string
+        nextStatus:
+          type: string
+        previousDueAt:
+          type: string
+          format: date-time
+        nextDueAt:
+          type: string
+          format: date-time
+        previousIntervalDays:
+          type: number
+        nextIntervalDays:
+          type: number
+        easeFactor:
+          type: number
+        newScheduleVersion:
+          type: integer
+          format: int64
+        idempotentReplay:
+          type: boolean

@@ -18,6 +18,12 @@
 - Q: Khi learner có nhiều word đến hạn, review queue nên chọn và sắp xếp chúng thế nào? → A: Tối đa 20 word mỗi queue, sắp theo due time cũ nhất trước; hoàn tất queue thì tải batch mới.
 - Q: Nếu cùng một review bị gửi lại do retry hoặc đồng thời từ hai thiết bị, hệ thống nên phản hồi thế nào? → A: Retry cùng logical review trả kết quả đã có, không tạo event mới; review stale khác bị từ chối và trả latest schedule.
 
+### Session 2026-09-11
+
+- Q: Điều kiện chuyển trạng thái lịch học giữa LEARNING, REVIEW, và RELEARNING? → A: Khi đang LEARNING, GOOD/EASY chuyển sang REVIEW; AGAIN/HARD giữ LEARNING. Khi đang REVIEW, HARD/GOOD/EASY giữ REVIEW; AGAIN chuyển sang RELEARNING. Khi đang RELEARNING, GOOD/EASY trở lại REVIEW; AGAIN/HARD giữ RELEARNING.
+- Q: Thẻ được đánh giá AGAIN (10 phút) được xử lý thế nào trong phiên học hiện tại? → A: Xoay vòng xuống cuối hàng chờ của batch (20 từ) hiện tại để người học gặp lại ngay trong phiên học mà không cần chờ hết 10 phút.
+- Q: Thẻ flashcard ôn tập nên hiển thị thông tin gì ở mặt trước và mặt sau? → A: Mặt trước hiển thị chữ Hán (giản thể/phồn thể) và audio (nếu khả dụng); mặt sau lật ra hiển thị Pinyin, nghĩa tiếng Việt, ví dụ minh họa và ghi chú cá nhân.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Review due vocabulary (Priority: P1)
@@ -88,7 +94,7 @@ authoritative next schedule with a consistent personal history.
 ## Requirements *(mandatory)*
 
 - **FR-001**: Learners MUST be able to view only their own due vocabulary in a queue of at most
-  20 items, ordered by oldest due time first. When the learner completes that queue, the system
+  20 items, ordered by oldest due time first. An item rated `AGAIN` during an active review session MUST be rotated to the end of the current 20-item batch queue. When the learner completes that queue, the system
   MUST allow loading the next due batch.
 - **FR-002**: Learners MUST submit only `AGAIN`, `HARD`, `GOOD`, or `EASY` for an owned review
   schedule.
@@ -104,12 +110,13 @@ authoritative next schedule with a consistent personal history.
   one learner-owned `LEARNING` review schedule due immediately. Repeated saves MUST NOT create a
   second schedule; restoration behaviour for a previously removed word remains governed by its
   existing schedule.
-- **FR-008**: The server MUST apply the four-rating schedule policy. On the initial due review,
+- **FR-008**: The server MUST apply the four-rating schedule policy and status transitions. On the initial due review,
   `AGAIN` sets the next due time to 10 minutes, `HARD` to 1 day, `GOOD` to 3 days, and `EASY` to
-  7 days. On every later review, `AGAIN` sets the next due time to 10 minutes and decreases ease
-  by 0.2; `HARD` uses the prior interval × 1.2 and decreases ease by 0.15; `GOOD` uses the prior
-  interval × prior ease; `EASY` uses the prior interval × (prior ease + 0.15). The persisted ease
-  factor MUST remain between 1.3 and 2.5.
+  7 days; `GOOD` or `EASY` transitions the status from `LEARNING` to `REVIEW`, while `AGAIN` or `HARD` retains `LEARNING`.
+  On every later review, `AGAIN` sets the next due time to 10 minutes, decreases ease by 0.2, and transitions a `REVIEW` status to `RELEARNING`;
+  `HARD` uses the prior interval × 1.2 and decreases ease by 0.15, retaining `REVIEW` or `RELEARNING`;
+  `GOOD` uses the prior interval × prior ease and `EASY` uses the prior interval × (prior ease + 0.15), both transitioning `RELEARNING` back to `REVIEW` or retaining `REVIEW`.
+  The persisted ease factor MUST remain between 1.3 and 2.5.
 - **FR-009**: When a learner-owned saved word is removed, F10 MUST suspend its existing review
   schedule without resetting interval, ease, or immutable review history. When its owner restores
   that saved word, F10 MUST resume the same schedule without creating another; if its due time has
