@@ -135,35 +135,22 @@ export function ShadowingPage({ segment, onBack, onPlayNativeSegment, onNextSegm
     setError(null);
 
     try {
-      // Convert Blob to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      reader.onloadend = async () => {
-        try {
-          const base64Data = reader.result ? String(reader.result).split(',')[1] : '';
+      // 1. Upload recording file via FormData
+      const recording = await uploadRecording({
+        segmentId: segment.segmentId,
+        audioBlob,
+        format: 'audio/webm',
+      });
 
-          // 1. Upload recording
-          const recording = await uploadRecording({
-            segmentId: segment.segmentId,
-            format: 'audio/webm',
-            durationSeconds: Math.max(1, recordingDuration),
-            audioBase64: base64Data,
-          });
+      // 2. Submit for AI assessment
+      const result = await createShadowingAttempt(segment.segmentId, recording.recordingId);
+      setAssessmentResult(result);
+      setRecordingState('recorded');
 
-          // 2. Submit for AI assessment
-          const result = await createShadowingAttempt(segment.segmentId, recording.recordingId);
-          setAssessmentResult(result);
-          setRecordingState('recorded');
-
-          // Refresh past attempts list
-          setPastAttempts((prev) => [result, ...prev]);
-        } catch (err) {
-          setError(err.message || 'Không thể đánh giá phát âm. Vui lòng thử lại.');
-          setRecordingState('recorded');
-        }
-      };
+      // Refresh past attempts list
+      setPastAttempts((prev) => [result, ...(prev || [])]);
     } catch (err) {
-      setError(err.message || 'Lỗi chuẩn bị tệp âm thanh.');
+      setError(err.message || 'Không thể đánh giá phát âm. Vui lòng thử lại.');
       setRecordingState('recorded');
     }
   };
