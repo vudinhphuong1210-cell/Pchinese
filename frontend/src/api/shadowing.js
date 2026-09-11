@@ -1,26 +1,25 @@
 import { httpClient } from './http.js';
 import { apiUrl } from './apiUrl.js';
 
-export const uploadRecording = async ({ segmentId, format = 'audio/webm', durationSeconds = 5, audioBase64 }) => {
+export const uploadRecording = async ({ segmentId, audioBlob, file, format = 'audio/webm' }) => {
+  const formData = new FormData();
+  const audioFile = file || (audioBlob instanceof File ? audioBlob : new File([audioBlob], 'recording.webm', { type: format }));
+  formData.append('file', audioFile);
+  formData.append('segmentId', segmentId);
+
   const response = await httpClient(apiUrl('/recordings'), {
     method: 'POST',
-    body: JSON.stringify({
-      segmentId,
-      format,
-      durationSeconds,
-      audioBase64,
-    }),
+    body: formData,
   });
   return response.data;
 };
 
 export const createShadowingAttempt = async (segmentId, recordingId) => {
-  const response = await httpClient(apiUrl('/shadowing-attempts'), {
+  const response = await httpClient(apiUrl(`/shadowing-attempts?segmentId=${encodeURIComponent(segmentId)}`), {
     method: 'POST',
-    body: JSON.stringify({
-      segmentId,
+    body: {
       recordingId,
-    }),
+    },
   });
   return response.data;
 };
