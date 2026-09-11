@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
+import { LessonDetailPage } from './features/catalog/LessonDetailPage.jsx';
+import { LessonPlayerPage } from './features/lesson-player/LessonPlayerPage.jsx';
 import { LoginForm } from './features/auth/LoginForm.jsx';
 import { RegisterForm } from './features/auth/RegisterForm.jsx';
 import { VerifyEmailScreen } from './features/auth/VerifyEmailScreen.jsx';
@@ -18,6 +20,7 @@ import { authApi } from './api/auth.js';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeLessonId, setActiveLessonId] = useState(null);
   const [authView, setAuthView] = useState('login'); // 'login' | 'register' | 'verify' | 'forgot' | 'reset'
   const [authActionToken, setAuthActionToken] = useState('');
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
@@ -95,6 +98,11 @@ export default function App() {
     if (tab === 'auth') setAuthView('login');
   };
 
+  const handleOpenLesson = (lessonId) => {
+    setActiveLessonId(lessonId);
+    setActiveTab('lesson-detail');
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col lg:flex-row antialiased font-sans">
       {/* Sidebar Desktop/Responsive */}
@@ -111,7 +119,30 @@ export default function App() {
 
       {/* Main Workspace */}
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 overflow-y-auto">
-        {activeTab === 'dashboard' && <DashboardPage />}
+        {activeTab === 'dashboard' && <DashboardPage onOpenLesson={handleOpenLesson} />}
+
+        {activeTab === 'lesson-detail' && activeLessonId && (
+          <LessonDetailPage
+            lessonId={activeLessonId}
+            onBack={() => setActiveTab('dashboard')}
+            onLogin={() => {
+              setActiveTab('auth');
+              setAuthView('login');
+            }}
+            onStartLearning={(id) => {
+              setActiveLessonId(id);
+              setActiveTab('lesson-player');
+            }}
+          />
+        )}
+
+        {activeTab === 'lesson-player' && activeLessonId && (
+          <LessonPlayerPage
+            lessonId={activeLessonId}
+            onBack={() => setActiveTab('lesson-detail')}
+            onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
+          />
+        )}
 
         {activeTab === 'entitlement' && <EntitlementPage />}
 

@@ -42,6 +42,8 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/v1/auth/register", "/api/v1/auth/email-verifications/**",
                                 "/api/v1/auth/password-resets/**", "/api/v1/auth/login", "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/topics", "/api/v1/topics/**",
+                                "/api/v1/lessons", "/api/v1/lessons/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) -> write(response, 401, objectMapper,
