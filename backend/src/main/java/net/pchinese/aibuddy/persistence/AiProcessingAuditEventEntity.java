@@ -4,7 +4,9 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
 
+import java.sql.Types;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -21,7 +23,7 @@ public class AiProcessingAuditEventEntity {
     @Column(name = "event_type", nullable = false, length = 40) private String eventType;
     @Column(nullable = false, length = 20) private String outcome;
     @Column(name = "safe_reason_code", length = 100) private String safeReasonCode;
-    @Column(name = "provider_request_reference_hash", length = 64) private String providerRequestReferenceHash;
+    @JdbcTypeCode(Types.CHAR) @Column(name = "provider_request_reference_hash", length = 64) private String providerRequestReferenceHash;
     @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
     protected AiProcessingAuditEventEntity() { }
     public static AiProcessingAuditEventEntity event(UUID userId, UUID conversationId, UUID correlationId, String eventType, String outcome, String safeReasonCode, Instant now) {

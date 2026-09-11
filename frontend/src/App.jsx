@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
 import { LessonDetailPage } from './features/catalog/LessonDetailPage.jsx';
+import { LessonPlayerPage } from './features/lesson-player/LessonPlayerPage.jsx';
 import { LoginForm } from './features/auth/LoginForm.jsx';
 import { RegisterForm } from './features/auth/RegisterForm.jsx';
 import { VerifyEmailScreen } from './features/auth/VerifyEmailScreen.jsx';
@@ -128,6 +129,18 @@ export default function App() {
               setActiveTab('auth');
               setAuthView('login');
             }}
+            onStartLearning={(id) => {
+              setActiveLessonId(id);
+              setActiveTab('lesson-player');
+            }}
+          />
+        )}
+
+        {activeTab === 'lesson-player' && activeLessonId && (
+          <LessonPlayerPage
+            lessonId={activeLessonId}
+            onBack={() => setActiveTab('lesson-detail')}
+            onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
           />
         )}
 

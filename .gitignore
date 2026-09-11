@@ -27,6 +27,7 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+.vs/
 
 # Local agent state and Supabase connection metadata
 .agents/

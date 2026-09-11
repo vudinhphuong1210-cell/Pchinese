@@ -10,7 +10,7 @@ const formatDuration = (seconds) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
-export function LessonDetailPage({ lessonId, onBack, onLogin }) {
+export function LessonDetailPage({ lessonId, onBack, onLogin, onStartLearning }) {
   const [lesson, setLesson] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -89,12 +89,14 @@ export function LessonDetailPage({ lessonId, onBack, onLogin }) {
           {isAuth ? (
             <button
               type="button"
+              onClick={() => onStartLearning && onStartLearning(lessonId)}
               className="h-12 px-8 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-pill shadow-md flex items-center space-x-2 transition-transform active:scale-95"
             >
               <Play className="w-5 h-5 fill-current" />
-              <span>Bắt đầu học (F06)</span>
+              <span>Bắt đầu học ngay</span>
             </button>
           ) : (
+
             <div className="text-center space-y-3">
               <p className="text-sm text-muted-foreground">Bạn cần đăng nhập để bắt đầu bài học này.</p>
               <button
