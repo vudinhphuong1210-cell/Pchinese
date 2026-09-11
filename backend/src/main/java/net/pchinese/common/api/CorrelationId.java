@@ -12,7 +12,11 @@ public final class CorrelationId {
 
     public static String current() {
         String value = MDC.get(MDC_KEY);
-        return value == null ? UUID.randomUUID().toString() : value;
+        if (value == null) {
+            value = UUID.randomUUID().toString();
+            MDC.put(MDC_KEY, value);
+        }
+        return value;
     }
 
     public static void set(String value) { MDC.put(MDC_KEY, value); }

@@ -8,6 +8,7 @@ import { ForgotPasswordForm } from './features/auth/ForgotPasswordForm.jsx';
 import { ResetPasswordForm } from './features/auth/ResetPasswordForm.jsx';
 import { AccountRolesTab } from './features/admin/AccountRolesTab.jsx';
 import { SystemActivityTab } from './features/admin/SystemActivityTab.jsx';
+import { ContentAdminPage } from './features/admin/content/ContentAdminPage.jsx';
 import { SettingsPage } from './features/settings/SettingsPage.jsx';
 import { EntitlementPage } from './features/entitlement/EntitlementPage.jsx';
 import { PremiumUpgradeModal } from './features/entitlement/PremiumUpgradeModal.jsx';
@@ -64,7 +65,7 @@ export default function App() {
   }, [currentTheme]);
 
   useEffect(() => {
-    if ((activeTab === 'admin' || activeTab === 'admin-audit') && !authState.isAdmin) {
+    if ((activeTab === 'admin' || activeTab === 'admin-audit' || activeTab === 'admin-content') && !authState.isAdmin) {
       setActiveTab('dashboard');
     }
   }, [activeTab, authState.isAdmin]);
@@ -85,7 +86,7 @@ export default function App() {
   };
 
   const handleSelectTab = (tab) => {
-    if ((tab === 'admin' || tab === 'admin-audit') && !authState.isAdmin) {
+    if ((tab === 'admin' || tab === 'admin-audit' || tab === 'admin-content') && !authState.isAdmin) {
       setActiveTab('dashboard');
       return;
     }
@@ -151,6 +152,12 @@ export default function App() {
 
         {activeTab === 'settings' && (
           <SettingsPage onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)} />
+        )}
+
+        {activeTab === 'admin-content' && authState.isAdmin && (
+          <div className="py-2">
+            <ContentAdminPage />
+          </div>
         )}
 
         {activeTab === 'admin' && authState.isAdmin && (

@@ -6,6 +6,8 @@ info:
     Design contract for versioned ADMIN content management. Public read paths
     expose only publishable Free content; administrative mutations use the
     standard success/data/error/meta envelope and require expectedVersion.
+    Management responses are typed safe projections, never persistence entities;
+    lists are bounded and media intake is server-controlled.
 servers:
   - url: /api/v1
 tags:
@@ -52,6 +54,50 @@ paths:
         '200': { $ref: '#/components/responses/ContentListSuccess' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/AuthorizationDenied' }
+  /admin/content/topics/{topicId}:
+    get:
+      tags: [AdminContent]
+      summary: Reload one safe topic projection for ADMIN
+      operationId: getAdminTopic
+      parameters: [ { $ref: '#/components/parameters/TopicId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/content/lessons/{lessonId}:
+    get:
+      tags: [AdminContent]
+      summary: Reload one safe lesson projection for ADMIN
+      operationId: getAdminLesson
+      parameters: [ { $ref: '#/components/parameters/LessonId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/content/segments/{segmentId}:
+    get:
+      tags: [AdminContent]
+      summary: Reload one safe segment projection for ADMIN
+      operationId: getAdminSegment
+      parameters: [ { $ref: '#/components/parameters/SegmentId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/content/media/{mediaAssetId}:
+    get:
+      tags: [AdminContent]
+      summary: Reload one safe media projection for ADMIN
+      operationId: getAdminMedia
+      parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
+      responses:
+        '200': { $ref: '#/components/responses/ContentSuccess' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AuthorizationDenied' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /topics:
     post:
       tags: [AdminContent]
@@ -298,12 +344,12 @@ paths:
   /media:
     post:
       tags: [AdminContent]
-      summary: Upload media or register allowlisted provider metadata
+      summary: Register one validated YouTube video reference for review
       operationId: createMedia
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema: { $ref: '#/components/schemas/MediaCreateRequest' }
       responses:
         '201': { $ref: '#/components/responses/ContentSuccess' }
@@ -313,7 +359,7 @@ paths:
   /media/{mediaAssetId}:
     patch:
       tags: [AdminContent]
-      summary: Update allowlisted media metadata with optimistic versioning
+      summary: Update YouTube media display metadata with optimistic versioning
       operationId: updateMedia
       parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
       requestBody:
@@ -331,7 +377,7 @@ paths:
   /media/{mediaAssetId}/approve:
     post:
       tags: [AdminContent]
-      summary: Approve a media asset
+      summary: Approve a clean pending-review media asset
       operationId: approveMedia
       parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
       requestBody:
@@ -347,7 +393,7 @@ paths:
   /media/{mediaAssetId}/reject:
     post:
       tags: [AdminContent]
-      summary: Reject a media asset
+      summary: Reject a pending-review or approved media asset and withdraw dependent published lessons
       operationId: rejectMedia
       parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
       requestBody:
@@ -363,7 +409,7 @@ paths:
   /media/{mediaAssetId}/quarantine:
     post:
       tags: [AdminContent]
-      summary: Quarantine a media asset
+      summary: Quarantine a pending-review or approved media asset and withdraw dependent published lessons
       operationId: quarantineMedia
       parameters: [ { $ref: '#/components/parameters/MediaAssetId' } ]
       requestBody:
@@ -415,7 +461,7 @@ components:
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         slug: { type: string, pattern: '^[a-z0-9-]+$' }
-        description: { type: string, maxLength: 4000 }
+        summary: { type: string, maxLength: 4000 }
         hskLevel: { type: integer, minimum: 1, maximum: 9 }
         sortOrder: { type: integer, minimum: 0 }
       additionalProperties: false
@@ -447,13 +493,18 @@ components:
       additionalProperties: false
     SegmentCreateRequest:
       type: object
-      required: [lessonId, mediaAssetId, sequenceNo]
+      required: [lessonId, mediaAssetId, sequenceNo, transcriptHanzi]
       properties:
         lessonId: { type: string, format: uuid }
         mediaAssetId: { type: string, format: uuid }
         sequenceNo: { type: integer, minimum: 1 }
-        transcript: { type: string, maxLength: 20000 }
-        timing: { type: object }
+        segmentType: { type: string, enum: [DICTATION, SHADOWING, BOTH, PLAYBACK_ONLY] }
+        startMilliseconds: { type: integer, minimum: 0 }
+        endMilliseconds: { type: integer, minimum: 0 }
+        transcriptHanzi: { type: string, minLength: 1, maxLength: 20000 }
+        transcriptPinyin: { type: string, maxLength: 20000 }
+        translationVi: { type: string, maxLength: 20000 }
+        dictationHint: { type: string, maxLength: 4000 }
       additionalProperties: false
     SegmentUpdateRequest:
       type: object
@@ -461,27 +512,29 @@ components:
       properties:
         mediaAssetId: { type: string, format: uuid }
         sequenceNo: { type: integer, minimum: 1 }
-        transcript: { type: string, maxLength: 20000 }
-        timing: { type: object }
+        transcriptHanzi: { type: string, maxLength: 20000 }
+        transcriptPinyin: { type: string, maxLength: 20000 }
+        translationVi: { type: string, maxLength: 20000 }
+        dictationHint: { type: string, maxLength: 4000 }
         expectedVersion: { type: integer, minimum: 0 }
       additionalProperties: false
     MediaCreateRequest:
+      description: Register one YouTube video for review. The reference accepts a supported HTTPS YouTube watch, share, or embed link, or its canonical 11-character video ID. The backend stores only the canonical ID; it does not upload or download video bytes.
       type: object
+      required: [youtubeVideoReference, title]
       properties:
-        file: { type: string, format: binary }
-        providerMetadata: { type: string }
-        expectedVersion: { type: integer, minimum: 0 }
-      anyOf:
-        - required: [file]
-        - required: [providerMetadata]
+        youtubeVideoReference: { type: string, minLength: 11, maxLength: 2048 }
+        durationMilliseconds: { type: integer, minimum: 0 }
+        title: { type: string, minLength: 1, maxLength: 200 }
+        altText: { type: string, maxLength: 500 }
       additionalProperties: false
     MediaUpdateRequest:
+      description: The YouTube source is immutable after creation. Register a distinct media asset to use a different video.
       type: object
       required: [expectedVersion]
       properties:
         title: { type: string, minLength: 1, maxLength: 200 }
         altText: { type: string, maxLength: 1000 }
-        providerMetadata: { type: string }
         expectedVersion: { type: integer, minimum: 0 }
       additionalProperties: false
     VersionedCommandRequest:
@@ -490,6 +543,7 @@ components:
       properties: { expectedVersion: { type: integer, minimum: 0 } }
       additionalProperties: false
     ContentProjection:
+      description: Safe typed ADMIN projection. It never includes persistence-only identifiers, actor identifiers, learner data, submitted provider URLs, storage keys, or verification diagnostics.
       type: object
       required: [id, entityType, publicationStatus, version]
       properties:
@@ -497,10 +551,34 @@ components:
         entityType: { type: string, enum: [TOPIC, LESSON, SEGMENT, MEDIA] }
         publicationStatus: { type: string, enum: [DRAFT, PUBLISHED, UNPUBLISHED, ARCHIVED, PENDING_SCAN, APPROVED, REJECTED, QUARANTINED] }
         version: { type: integer, minimum: 0 }
+        title: { type: string, maxLength: 200 }
+        parentId: { type: string, format: uuid }
+        sequenceNo: { type: integer, minimum: 1 }
+        accessLevel: { type: string, enum: [FREE] }
+        providerName: { type: string, const: YOUTUBE }
+        youtubeVideoId: { type: string, pattern: '^[A-Za-z0-9_-]{11}$' }
+        slug: { type: string, maxLength: 200 }
+        description: { type: string, maxLength: 4000 }
+        summary: { type: string, maxLength: 4000 }
+        hskLevel: { type: integer, minimum: 1, maximum: 9 }
+        transcriptHanzi: { type: string, maxLength: 20000 }
+        transcriptPinyin: { type: string, maxLength: 20000 }
+        translationVi: { type: string, maxLength: 20000 }
+        dictationHint: { type: string, maxLength: 4000 }
+        startMilliseconds: { type: integer, minimum: 0 }
+        endMilliseconds: { type: integer, minimum: 0 }
+        segmentType: { type: string, enum: [DICTATION, SHADOWING, BOTH, PLAYBACK_ONLY] }
+        mediaKind: { type: string, const: VIDEO }
+        altText: { type: string, maxLength: 500 }
+        approvalEligible: { type: boolean, description: Safe indication that PENDING_SCAN YouTube media may be approved after trusted-source verification. }
     PageMeta:
       type: object
-      required: [page, size]
-      properties: { page: { type: integer }, size: { type: integer } }
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, minimum: 0 }
+        totalPages: { type: integer, minimum: 0 }
     Meta:
       type: object
       required: [correlationId]

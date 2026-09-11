@@ -8,6 +8,9 @@ build/
 target/
 **/target/
 coverage/
+media-uploads/
+frontend/test-results/
+frontend/playwright-report/
 **/coverage/
 
 # Local configuration and secrets

@@ -217,6 +217,24 @@ export function Sidebar({
             <nav className="space-y-1">
               <button
                 type="button"
+                onClick={() => onSelectTab('admin-content')}
+                title="Quản lý nội dung"
+                className={`${
+                  isCollapsed
+                    ? 'w-11 h-11 mx-auto justify-center rounded-xl'
+                    : 'w-full h-11 px-3.5 rounded-md space-x-3'
+                } text-sm font-semibold flex items-center transition-all ${
+                  activeTab === 'admin-content'
+                    ? 'bg-secondary text-foreground shadow-sm border border-border/80'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                }`}
+                data-testid="nav-admin-content"
+              >
+                <BookOpen className={`w-5 h-5 shrink-0 ${activeTab === 'admin-content' ? 'text-primary' : ''}`} />
+                {!isCollapsed && <span>Quản lý nội dung</span>}
+              </button>
+              <button
+                type="button"
                 onClick={() => onSelectTab('admin')}
                 title="Quản lý người dùng"
                 className={`${

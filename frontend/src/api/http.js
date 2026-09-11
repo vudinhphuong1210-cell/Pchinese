@@ -126,8 +126,9 @@ export async function httpClient(url, options = {}) {
     ...rest
   } = options;
 
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
     ...customHeaders,
   };
   applyBrowserSessionHeader(headers);
@@ -150,7 +151,7 @@ export async function httpClient(url, options = {}) {
   };
 
   if (body !== undefined) {
-    config.body = typeof body === 'string' ? body : JSON.stringify(body);
+    config.body = isFormData || typeof body === 'string' ? body : JSON.stringify(body);
   }
 
   let response;

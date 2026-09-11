@@ -111,6 +111,28 @@ CONSTRAINT auth_audit_events_pkey PRIMARY KEY (auth_audit_event_id),
 CONSTRAINT fk_auth_audit_events_actor FOREIGN KEY (actor_user_id) REFERENCES public.users(user_id),
 CONSTRAINT fk_auth_audit_events_target FOREIGN KEY (target_user_id) REFERENCES public.users(user_id)
 );
+CREATE TABLE public.content_audit_events (
+content_audit_event_id uuid NOT NULL,
+event_type character varying(100) NOT NULL,
+actor_user_id uuid NOT NULL,
+target_entity_type character varying(50) NOT NULL CHECK (target_entity_type::text = ANY (ARRAY['TOPIC'::character varying, 'LESSON'::character varying, 'SEGMENT'::character varying, 'MEDIA_ASSET'::character varying]::text[])),
+target_entity_id uuid NOT NULL,
+outcome character varying(20) NOT NULL CHECK (outcome::text = ANY (ARRAY['SUCCESS'::character varying, 'REJECTED'::character varying]::text[])),
+reason_code character varying(100),
+expected_version bigint,
+observed_version bigint,
+before_state character varying(50),
+after_state character varying(50),
+safe_details jsonb,
+correlation_id uuid NOT NULL,
+occurred_at timestamp with time zone NOT NULL DEFAULT now(),
+CONSTRAINT content_audit_events_pkey PRIMARY KEY (content_audit_event_id),
+CONSTRAINT fk_content_audit_events_actor FOREIGN KEY (actor_user_id) REFERENCES public.users(user_id),
+CONSTRAINT ck_content_audit_events_safe_details_object CHECK (safe_details IS NULL OR jsonb_typeof(safe_details) = 'object')
+);
+CREATE INDEX ix_content_audit_events_target_occurred ON public.content_audit_events (target_entity_type, target_entity_id, occurred_at DESC);
+CREATE INDEX ix_content_audit_events_actor_occurred ON public.content_audit_events (actor_user_id, occurred_at DESC);
+CREATE INDEX ix_content_audit_events_correlation ON public.content_audit_events (correlation_id);
 CREATE TABLE public.subscription_plans (
 subscription_plan_id uuid NOT NULL,
 plan_code character varying NOT NULL UNIQUE CHECK (plan_code::text = ANY (ARRAY['FREE'::character varying, 'PREMIUM'::character varying]::text[])),
@@ -179,13 +201,15 @@ CONSTRAINT fk_topics_updated_by FOREIGN KEY (updated_by_user_id) REFERENCES publ
 );
 CREATE TABLE public.media_assets (
 media_asset_id uuid NOT NULL,
-provider_name character varying NOT NULL,
-provider_asset_identifier character varying NOT NULL,
-media_kind character varying NOT NULL CHECK (media_kind::text = ANY (ARRAY['AUDIO'::character varying, 'VIDEO'::character varying, 'IMAGE'::character varying]::text[])),
+provider_name character varying NOT NULL CHECK (provider_name::text = 'YOUTUBE'::text),
+provider_asset_identifier character varying NOT NULL CHECK (provider_asset_identifier ~ '^[A-Za-z0-9_-]{11}$'),
+media_kind character varying NOT NULL CHECK (media_kind::text = 'VIDEO'::text),
 mime_type character varying,
 duration_milliseconds integer CHECK (duration_milliseconds IS NULL OR duration_milliseconds >= 0),
+title character varying(200),
+alt_text character varying(500),
 approval_status character varying NOT NULL CHECK (approval_status::text = ANY (ARRAY['PENDING_SCAN'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'QUARANTINED'::character varying]::text[])),
-malware_scan_status character varying NOT NULL,
+malware_scan_status character varying NOT NULL CHECK (malware_scan_status::text = ANY (ARRAY['PENDING'::character varying, 'CLEAN'::character varying, 'INFECTED'::character varying, 'FAILED'::character varying]::text[])),
 approved_by_user_id uuid,
 approved_at timestamp with time zone,
 created_by_user_id uuid NOT NULL,
@@ -193,6 +217,7 @@ created_at timestamp with time zone NOT NULL,
 updated_at timestamp with time zone NOT NULL,
 version bigint NOT NULL DEFAULT 0,
 CONSTRAINT media_assets_pkey PRIMARY KEY (media_asset_id),
+CONSTRAINT uq_media_assets_provider UNIQUE (provider_name, provider_asset_identifier),
 CONSTRAINT fk_media_assets_created_by FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id),
 CONSTRAINT fk_media_assets_approved_by FOREIGN KEY (approved_by_user_id) REFERENCES public.users(user_id)
 );
