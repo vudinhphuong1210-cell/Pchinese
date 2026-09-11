@@ -163,23 +163,67 @@ Rules:
 
 ### Module boundaries
 
-| Module        | Owns                                                                                                     | Must not own                          |
-| ------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| `auth`        | registration, login, password hashing, sessions and refresh-token rotation                               | lesson or progress business rules     |
-| `security`    | access-token validation, authenticated principal, role-based authorization and role-change audit records | plan/entitlement business rules       |
-| `users`       | profile, preferences and server-managed account roles                                                    | subscription payment-provider details |
-| `learning`    | topics, lessons, segments, content metadata and publication state                                        | a learner's review schedule           |
-| `media`       | approved provider identifiers and playback metadata                                                      | learning attempts or progress         |
-| `dictation`   | answer evaluation and attempts                                                                           | shadowing assessment                  |
-| `shadowing`   | recording workflow and assessment result                                                                 | dictionary definitions                |
-| `vocabulary`  | saved words, lists and review scheduling                                                                 | lesson publishing                     |
-| `ai`          | AI Buddy sessions and safe AI integration                                                                | authentication implementation         |
-| `progress`    | completion, statistics, recommendations                                                                  | direct mutation of attempts           |
-| `entitlement` | plan, lesson `FREE`/`PREMIUM` access and server-side AI quota checks                                     | UI-only visibility checks             |
+| Module | Owns | Must not own |
+| --- | --- | --- |
+| `auth` | Registration, login, password hashing, sessions, action tokens và refresh-token rotation | Lesson or progress business rules |
+| `security` | Access-token validation, authenticated principal, role-based authorization, KMS envelope encryption | Plan/entitlement business rules |
+| `users` | Account identity, server-managed `ADMIN` roles, audit events | Payment-provider details |
+| `profile` | User preferences, native language, timezone, daily goals, target HSK level | Authentication implementation |
+| `content` | Topics, lessons, segments, content metadata, publication state lifecycle | A learner's review schedule |
+| `media` | Approved media providers (YouTube), asset intake policy, malware scan status | Learning attempts or progress |
+| `entitlement` | Subscription plans (`FREE`, `PREMIUM`), user entitlement lifecycle | UI-only visibility checks |
+| `allowance` | AI quota units, periods, two-phase reservation & refund lifecycle | LLM prompt engineering |
+| `aibuddy` | AI Buddy conversation sessions, scenarios, AES-GCM encrypted messages | Authentication implementation |
+| `progress` | Lesson playback capability, watermark validation, segment unlock, lesson completion | Direct mutation of attempts |
+| `dictation` | In-player dictation answers, deterministic evaluation (100/0), attempt history | Shadowing assessment |
+| `shadowing` | Dedicated screen, audio upload/scan, AI pronunciation/IPA assessment integration | Dictionary definitions |
+| `vocabulary` | Dictionary search, saved words, personal notes | Lesson publishing |
+| `srs` | Spaced repetition review queue (SM-2), review events, scheduling | Lesson progression |
+
+### Backend Package Layout (`backend/src/main/java/net/pchinese`)
+
+Backend tổ chức theo chuẩn **Clean Layered / Package-by-Feature**:
+
+```text
+net.pchinese/
+├── common/              # ApiEnvelope, CorrelationIdFilter, ApiExceptionHandler (@RestControllerAdvice)
+├── security/            # SecurityConfig, JwtAuthenticationFilter, JwtService, RefreshRequestSecurityFilter
+│   └── crypto/          # ConversationCryptoService, ApplicationKmsEnvelopeService, UserDataKeyEntity
+├── auth/                # AuthController, AccountLifecycleService, SessionLifecycleService, Token Repositories
+├── users/               # AccountRoleController, AccountRoleService, UserEntity, UserRoleEntity
+├── profile/             # CurrentUserController, ProfileService
+├── content/             # ContentAdminController, ContentLifecycleController, ContentPublicationService, Entities
+├── media/               # MediaAdminController, MediaAssetService, MediaIntakePolicy, MediaScanService
+├── entitlement/         # EntitlementService, EntitlementProvisioningService, SubscriptionPlanEntity
+├── allowance/           # AiAllowanceService, AiUsageEventEntity (Two-phase Reserve -> Succeed / Refund)
+├── aibuddy/             # AiBuddyController, AiConversationService, AiMessageService, HttpAiBuddyClient
+├── progress/            # LessonPlaybackController, LessonProgressService, LessonProgressEntity, PlaybackCapability
+├── dictation/           # DictationController, DictationService, DictationEvaluator, DictationAttemptEntity
+└── shadowing/           # ShadowingController, ShadowingService, RecordingEntity, ShadowingAttemptEntity
+```
+
+### Data Privacy & Envelope Encryption
+
+Pchinese bảo vệ dữ liệu người dùng (PII, nội dung tin nhắn AI, bản thu âm bài tập) theo mô hình **Envelope Encryption (AES-256-GCM)**:
+
+1. **Master Key (KMS):** Khóa gốc do môi trường/KMS quản lý (được cấu hình qua `PCHINESE_ENCRYPTION_KEY`).
+2. **User DEK (Data Encryption Key):** Mỗi User có 1 khóa DEK ngẫu nhiên 256-bit, được bọc (wrapped) bởi KMS và lưu tại `user_data_keys`.
+3. **Conversation / Resource DEK:** Mỗi phiên AI Conversation có 1 khóa riêng, được bọc bởi User DEK.
+4. **Field-level Ciphertext:** Nội dung tin nhắn học viên, câu trả lời và ghi âm được mã hóa bằng AES-256-GCM với IV 12-byte ngẫu nhiên trước khi ghi vào PostgreSQL.
+
+### Two-Phase AI Allowance Reservation
+
+Mọi hoạt động tiêu thụ AI (AI Buddy `F11`, Shadowing `F08`) đều đi qua quy trình 2 pha nghiêm ngặt:
+
+1. **Reserve Phase:** `AiAllowanceService.reserveOrReuse()` kiểm tra quota còn lại trong chu kỳ (`DAY`/`MONTH`), tạo bản ghi `ai_usage_events` ở trạng thái `RESERVED` với idempotency key.
+2. **Dispatch & Execute:** Gửi request sang `ai-service`.
+3. **Completion Phase:**
+   - **Thành công:** Chuyển trạng thái `SUCCEEDED`, trừ quota chính thức.
+   - **Thất bại / Timeout:** Tự động hoàn lại hạn ngạch (`FAILED_REFUNDED`), không làm mất lượt của người học.
 
 ### Mastra AI Service boundary
 
-Khi feature AI Buddy (`F11`) được triển khai, Pchinese có thể chạy một `ai-service` Node.js + TypeScript sử dụng Mastra. Đây là một **supporting service boundary đã được kiến trúc chấp thuận**, không phải domain microservice sở hữu product data. Nó chỉ điều phối model, agent và workflow AI; Spring Boot vẫn là authority duy nhất cho dữ liệu và business rule.
+Khi feature AI Buddy (`F11`) và Shadowing (`F08`) được triển khai, Pchinese chạy một `ai-service` Node.js + TypeScript sử dụng Mastra. Đây là một **supporting service boundary đã được kiến trúc chấp thuận**, không phải domain microservice sở hữu product data. Nó chỉ điều phối model, agent và workflow AI; Spring Boot vẫn là authority duy nhất cho dữ liệu và business rule.
 
 ```text
 React SPA
