@@ -437,14 +437,28 @@ CONSTRAINT fk_lesson_progresses_lesson FOREIGN KEY (lesson_id) REFERENCES public
 CONSTRAINT fk_lesson_progresses_current_segment FOREIGN KEY (current_segment_id) REFERENCES public.segments(segment_id),
 CONSTRAINT fk_lesson_progresses_current_segment FOREIGN KEY (lesson_id) REFERENCES public.segments(lesson_id)
 );
+CREATE TABLE public.user_data_keys (
+  user_id uuid NOT NULL,
+  wrapped_user_dek bytea NOT NULL,
+  kms_key_reference character varying(255) NOT NULL,
+  status character varying(20) NOT NULL DEFAULT 'ACTIVE'::character varying CHECK (status::text = ANY (ARRAY['ACTIVE'::character varying, 'DESTROYED'::character varying]::text[])),
+  created_at timestamp with time zone NOT NULL,
+  destroyed_at timestamp with time zone,
+  CONSTRAINT user_data_keys_pkey PRIMARY KEY (user_id),
+  CONSTRAINT fk_user_data_keys_user FOREIGN KEY (user_id) REFERENCES public.users(user_id)
+);
 CREATE TABLE public.ai_conversations (
-ai_conversation_id uuid NOT NULL,
-user_id uuid NOT NULL,
-title_ciphertext bytea,
-scenario_code character varying,
-status character varying NOT NULL DEFAULT 'ACTIVE'::character varying CHECK (status::text = ANY (ARRAY['ACTIVE'::character varying, 'DELETED'::character varying]::text[])),
-last_message_at timestamp with time zone,
-deleted_at timestamp with time zone,
+  ai_conversation_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  title_ciphertext bytea,
+  wrapped_conversation_dek bytea NOT NULL,
+  scenario_code character varying,
+  status character varying NOT NULL DEFAULT 'ACTIVE'::character varying CHECK (status::text = ANY (ARRAY['ACTIVE'::character varying, 'DELETED'::character varying]::text[])),
+  last_message_at timestamp with time zone,
+  hard_delete_after timestamp with time zone,
+  hard_delete_status character varying(24) CHECK (hard_delete_status::text = ANY (ARRAY['PENDING'::character varying, 'PROCESSING'::character varying, 'COMPLETED'::character varying, 'BLOCKED_LEGAL_HOLD'::character varying]::text[])),
+  deleted_at timestamp with time zone,
+  conversation_key_destroyed_at timestamp with time zone,
 created_at timestamp with time zone NOT NULL,
 updated_at timestamp with time zone NOT NULL,
 version bigint NOT NULL DEFAULT 0,
@@ -456,19 +470,79 @@ ai_message_id uuid NOT NULL,
 ai_conversation_id uuid NOT NULL,
 user_id uuid NOT NULL,
 sequence_no integer NOT NULL CHECK (sequence_no > 0),
-sender_type character varying NOT NULL CHECK (sender_type::text = ANY (ARRAY['LEARNER'::character varying, 'ASSISTANT'::character varying]::text[])),
-content_ciphertext bytea NOT NULL,
-status character varying NOT NULL CHECK (status::text = ANY (ARRAY['PENDING'::character varying, 'COMPLETE'::character varying, 'FAILED'::character varying, 'DELETED'::character varying]::text[])),
-ai_usage_event_id uuid,
-created_at timestamp with time zone NOT NULL,
-completed_at timestamp with time zone,
-deleted_at timestamp with time zone,
+  sender_type character varying NOT NULL CHECK (sender_type::text = ANY (ARRAY['LEARNER'::character varying, 'ASSISTANT'::character varying]::text[])),
+  content_ciphertext bytea NOT NULL,
+  vietnamese_explanation_ciphertext bytea,
+  suggestion_ciphertext bytea,
+  status character varying NOT NULL CHECK (status::text = ANY (ARRAY['PENDING'::character varying, 'COMPLETE'::character varying, 'FAILED'::character varying, 'DELETED'::character varying]::text[])),
+  client_request_id uuid,
+  request_fingerprint character(64),
+  processing_deadline_at timestamp with time zone,
+  failure_code character varying(100),
+  ai_usage_event_id uuid,
+  created_at timestamp with time zone NOT NULL,
+  completed_at timestamp with time zone,
+  deleted_at timestamp with time zone,
+  updated_at timestamp with time zone NOT NULL,
 CONSTRAINT ai_messages_pkey PRIMARY KEY (ai_message_id),
 CONSTRAINT fk_ai_messages_conversation FOREIGN KEY (ai_conversation_id) REFERENCES public.ai_conversations(ai_conversation_id),
 CONSTRAINT fk_ai_messages_conversation FOREIGN KEY (user_id) REFERENCES public.ai_conversations(user_id),
 CONSTRAINT fk_ai_messages_ai_usage_event FOREIGN KEY (ai_usage_event_id) REFERENCES public.ai_usage_events(ai_usage_event_id),
-CONSTRAINT fk_ai_messages_ai_usage_event FOREIGN KEY (user_id) REFERENCES public.ai_usage_events(user_id)
+  CONSTRAINT fk_ai_messages_ai_usage_event FOREIGN KEY (user_id) REFERENCES public.ai_usage_events(user_id)
 );
+CREATE UNIQUE INDEX uq_ai_messages_conversation_sequence ON public.ai_messages (ai_conversation_id, sequence_no);
+CREATE UNIQUE INDEX uq_ai_messages_user_client_request ON public.ai_messages (user_id, client_request_id) WHERE client_request_id IS NOT NULL;
+CREATE INDEX ix_ai_messages_context ON public.ai_messages (ai_conversation_id, status, sequence_no);
+CREATE INDEX ix_ai_conversations_retention ON public.ai_conversations (status, last_message_at);
+CREATE INDEX ix_ai_conversations_hard_delete ON public.ai_conversations (hard_delete_status, hard_delete_after);
+CREATE TABLE public.ai_processing_audit_events (
+  ai_processing_audit_event_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  ai_conversation_id uuid,
+  correlation_id uuid NOT NULL,
+  provider_code character varying(64) NOT NULL,
+  model_code character varying(128) NOT NULL,
+  transfer_region character varying(64) NOT NULL,
+  event_type character varying(40) NOT NULL CHECK (event_type::text = ANY (ARRAY['REQUEST_DISPATCHED'::character varying, 'RESPONSE_RECEIVED'::character varying, 'REQUEST_REJECTED'::character varying, 'DELETION_ATTESTED'::character varying]::text[])),
+  outcome character varying(20) NOT NULL CHECK (outcome::text = ANY (ARRAY['SUCCESS'::character varying, 'REJECTED'::character varying, 'FAILED'::character varying]::text[])),
+  safe_reason_code character varying(100),
+  input_policy_version character varying(32),
+  output_policy_version character varying(32),
+  provider_request_reference_hash character(64),
+  occurred_at timestamp with time zone NOT NULL,
+  CONSTRAINT ai_processing_audit_events_pkey PRIMARY KEY (ai_processing_audit_event_id),
+  CONSTRAINT fk_ai_processing_audit_events_user FOREIGN KEY (user_id) REFERENCES public.users(user_id),
+  CONSTRAINT fk_ai_processing_audit_events_conversation FOREIGN KEY (ai_conversation_id) REFERENCES public.ai_conversations(ai_conversation_id)
+);
+CREATE INDEX ix_ai_processing_audit_events_correlation ON public.ai_processing_audit_events (correlation_id);
+CREATE INDEX ix_ai_processing_audit_events_conversation_occurred ON public.ai_processing_audit_events (ai_conversation_id, occurred_at DESC);
+CREATE TABLE public.ai_retention_notices (
+  ai_retention_notice_id uuid NOT NULL,
+  ai_conversation_id uuid NOT NULL,
+  notice_type character varying(40) NOT NULL CHECK (notice_type::text = 'INACTIVITY_30_DAYS'::text),
+  idempotency_key character varying(160) NOT NULL,
+  status character varying(20) NOT NULL CHECK (status::text = ANY (ARRAY['PENDING'::character varying, 'SENDING'::character varying, 'SENT'::character varying, 'FAILED'::character varying]::text[])),
+  attempt_count integer NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  last_attempt_at timestamp with time zone,
+  sent_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL,
+  updated_at timestamp with time zone NOT NULL,
+  CONSTRAINT ai_retention_notices_pkey PRIMARY KEY (ai_retention_notice_id),
+  CONSTRAINT uq_ai_retention_notices_conversation_type UNIQUE (ai_conversation_id, notice_type),
+  CONSTRAINT uq_ai_retention_notices_idempotency UNIQUE (idempotency_key),
+  CONSTRAINT fk_ai_retention_notices_conversation FOREIGN KEY (ai_conversation_id) REFERENCES public.ai_conversations(ai_conversation_id)
+);
+CREATE TABLE public.ai_conversation_legal_holds (
+  ai_conversation_legal_hold_id uuid NOT NULL,
+  ai_conversation_id uuid NOT NULL,
+  hold_reason_code character varying(100) NOT NULL,
+  created_by_reference character varying(128) NOT NULL,
+  held_at timestamp with time zone NOT NULL,
+  released_at timestamp with time zone,
+  CONSTRAINT ai_conversation_legal_holds_pkey PRIMARY KEY (ai_conversation_legal_hold_id),
+  CONSTRAINT fk_ai_conversation_legal_holds_conversation FOREIGN KEY (ai_conversation_id) REFERENCES public.ai_conversations(ai_conversation_id)
+);
+CREATE UNIQUE INDEX uq_ai_conversation_legal_holds_active ON public.ai_conversation_legal_holds (ai_conversation_id) WHERE released_at IS NULL;
 CREATE TABLE public.flyway_schema_history (
 installed_rank integer NOT NULL,
 version character varying,

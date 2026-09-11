@@ -81,7 +81,7 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [AiConversations]
-      summary: Hide the caller-owned conversation immediately and exclude it from future context
+      summary: Hide the caller-owned conversation immediately, exclude it from future context, crypto-erase it, and create durable database-backed deletion work
       operationId: deleteAiConversation
       parameters: [ { $ref: '#/components/parameters/ConversationId' } ]
       responses:
@@ -100,8 +100,8 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CreateMessageRequest' }
       responses:
-        '202':
-          description: Eligible request accepted; projection may be PENDING or COMPLETE.
+        '200':
+          description: Eligible request completed within 30 seconds; returns a COMPLETE message pair only.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MessagePairEnvelope' }
@@ -110,23 +110,46 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/StateConflict' }
         '429': { $ref: '#/components/responses/RateLimited' }
-        '502': { $ref: '#/components/responses/ProviderUnavailable' }
-        '503': { $ref: '#/components/responses/ProviderUnavailable' }
+        '502': { $ref: '#/components/responses/ProviderError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /internal/v1/ai-buddy/respond:
     post:
       tags: [PrivateAiBuddy]
       summary: Private Spring Boot to ai-service bounded learning response
       operationId: respondAiBuddyInternal
       description: >
-        Private-network-only operation. Spring Boot sends only the chosen scenario,
-        current vetted learner message and no more than ten recent COMPLETE messages
-        from the same conversation. It never sends browser JWT, F03 decision,
-        database graph or cross-conversation history.
+        Private-network-only operation. Spring Boot sends only correlation/request metadata,
+        fixed AI_BUDDY capability, the chosen scenario, current vetted learner message and
+        no more than ten recent COMPLETE messages from the same conversation. It never
+        sends browser JWT, F03 decision, database identifiers/graph or cross-conversation history.
       servers:
         - url: /
       security:
         - internalServiceAuth: []
+      parameters:
+        - name: X-Internal-Timestamp
+          in: header
+          required: true
+          description: RFC 3339 UTC timestamp; it must be within the five-minute accepted clock window.
+          schema: { type: string, format: date-time }
+        - name: X-Internal-Nonce
+          in: header
+          required: true
+          description: Unique UUID replay-protection nonce; it is valid for no more than five minutes.
+          schema: { type: string, format: uuid }
+        - name: X-Internal-Content-SHA256
+          in: header
+          required: true
+          description: Lowercase hexadecimal SHA-256 hash of the exact request body.
+          schema: { type: string, pattern: '^[a-f0-9]{64}$' }
+        - name: X-Internal-Signature
+          in: header
+          required: true
+          description: Lowercase hexadecimal HMAC-SHA-256 of the normative canonical string defined by internalServiceAuth.
+          schema: { type: string, pattern: '^[a-f0-9]{64}$' }
       x-internal: true
+      x-private-network-only: true
+      x-hmac-contract-fixture: f11-hmac-test-vector.json
       requestBody:
         required: true
         content:
@@ -146,7 +169,7 @@ components:
       type: apiKey
       in: header
       name: X-Internal-Signature
-      description: HMAC or mTLS-authenticated service call with timestamp and nonce replay protection.
+      description: Lowercase hexadecimal HMAC-SHA-256 over the exact UTF-8 newline-delimited uppercase method, path, X-Internal-Timestamp, X-Internal-Nonce and X-Internal-Content-SHA256 values, in that order. The body hash is lowercase hexadecimal SHA-256 of the exact UTF-8 request body; no parsed/re-serialized JSON is signed. The normative fixed test vector is contracts/f11-hmac-test-vector.json. Private TLS is mandatory; the signature, timestamp and nonce are rejected when missing, invalid, expired or replayed.
   parameters:
     ConversationId: { name: conversationId, in: path, required: true, schema: { type: string, format: uuid } }
     Page: { name: page, in: query, required: false, schema: { type: integer, minimum: 0, default: 0 } }
@@ -156,7 +179,7 @@ components:
       description: Command accepted and completed
       content: { application/json: { schema: { $ref: '#/components/schemas/EmptySuccessEnvelope' } } }
     ValidationError:
-      description: Invalid, unsafe, oversized or out-of-scenario request; no message or allowance reservation is created
+      description: Invalid, oversized, unsafe, out-of-scenario, policy-ambiguous, general-chat, prompt-injection or PII/risk-category request; no message, provider call or allowance reservation is created
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     Unauthenticated:
       description: Missing, expired, revoked or invalid access credential
@@ -165,13 +188,20 @@ components:
       description: Conversation is absent, deleted or not owned; no disclosure distinction
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     StateConflict:
-      description: Changed idempotency request or invalid conversation/message state
+      description: Changed idempotency request or invalid conversation/message state. An unchanged repeat joins the original request and receives its terminal outcome; PENDING is never returned publicly.
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     RateLimited:
-      description: F03 allowance unavailable or server throttle reached before private call
+      description: F03 allowance unavailable or the learner exceeded five send attempts in a rolling minute; no private call, allowance reservation or message is created for a throttled request
+      headers:
+        Retry-After:
+          description: Seconds until the learner may make another send attempt.
+          schema: { type: integer, minimum: 1 }
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
-    ProviderUnavailable:
-      description: Safe ai-service or provider failure; prompts and model trace are not exposed
+    ProviderError:
+      description: Malformed, invalid, or output-policy-rejected provider result; prompts and model trace are not exposed and the allowance is restored exactly once
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    ServiceUnavailable:
+      description: Temporary ai-service or provider timeout/unavailability; prompts and model trace are not exposed
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     InternalValidationError:
       description: Private request or model output schema is invalid
@@ -219,7 +249,7 @@ components:
         id: { type: string, format: uuid }
         sequenceNumber: { type: integer, minimum: 1 }
         sender: { type: string, enum: [LEARNER, ASSISTANT] }
-        status: { type: string, enum: [PENDING, COMPLETE, FAILED] }
+        status: { type: string, enum: [COMPLETE, FAILED] }
         content: { type: [string, 'null'], maxLength: 1000 }
         vietnameseExplanation: { type: [string, 'null'], maxLength: 1000 }
         suggestion: { type: [string, 'null'], maxLength: 500 }
@@ -234,6 +264,7 @@ components:
             messages: { type: array, items: { $ref: '#/components/schemas/AiMessage' } }
     MessagePair:
       type: object
+      description: Returned by the send-message operation only on terminal success; both messages have COMPLETE status.
       required: [learnerMessage, assistantMessage]
       properties:
         learnerMessage: { $ref: '#/components/schemas/AiMessage' }
@@ -244,12 +275,17 @@ components:
       properties:
         sender: { type: string, enum: [LEARNER, ASSISTANT] }
         content: { type: string, minLength: 1, maxLength: 1000 }
+      additionalProperties: false
+    PrivateCapability:
+      type: string
+      const: AI_BUDDY
     PrivateBuddyRequest:
       type: object
-      required: [correlationId, requestId, scenario, currentMessage, context]
+      required: [correlationId, requestId, capability, scenario, currentMessage, context]
       properties:
         correlationId: { type: string, format: uuid }
         requestId: { type: string, format: uuid }
+        capability: { $ref: '#/components/schemas/PrivateCapability' }
         scenario: { $ref: '#/components/schemas/Scenario' }
         currentMessage: { type: string, minLength: 1, maxLength: 1000 }
         context:
@@ -259,11 +295,13 @@ components:
       additionalProperties: false
     PrivateBuddyResponse:
       type: object
-      required: [chineseResponse, vietnameseExplanation]
+      required: [correlationId, chineseResponse, vietnameseExplanation]
       properties:
+        correlationId: { type: string, format: uuid }
         chineseResponse: { type: string, minLength: 1, maxLength: 1000 }
         vietnameseExplanation: { type: string, minLength: 1, maxLength: 1000 }
         suggestion: { type: [string, 'null'], maxLength: 500 }
+      additionalProperties: false
     PageMeta:
       type: object
       required: [correlationId, page, size]
@@ -279,12 +317,15 @@ components:
       type: object
       required: [code, message]
       properties:
-        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT, IDEMPOTENCY_CONFLICT, AI_QUOTA_EXCEEDED, RATE_LIMITED, PROVIDER_UNAVAILABLE] }
+        code: { type: string, enum: [VALIDATION_ERROR, UNAUTHENTICATED, RESOURCE_NOT_FOUND, STATE_CONFLICT, IDEMPOTENCY_CONFLICT, AI_QUOTA_EXCEEDED, RATE_LIMITED, PROVIDER_ERROR, SERVICE_UNAVAILABLE] }
         message: { type: string }
     InternalError:
       type: object
-      required: [code]
-      properties: { code: { type: string, enum: [INVALID_INTERNAL_REQUEST, INVALID_MODEL_RESULT, PROVIDER_UNAVAILABLE] } }
+      required: [code, correlationId]
+      properties:
+        code: { type: string, enum: [INVALID_INTERNAL_REQUEST, INPUT_SAFETY_REJECTED, INVALID_MODEL_RESULT, OUTPUT_SAFETY_REJECTED, PROVIDER_UNAVAILABLE] }
+        correlationId: { type: string, format: uuid }
+      additionalProperties: false
     ConversationEnvelope:
       type: object
       required: [success, data, error, meta]
@@ -335,4 +376,3 @@ components:
         meta: { $ref: '#/components/schemas/Meta' }
 security:
   - bearerAuth: []
-

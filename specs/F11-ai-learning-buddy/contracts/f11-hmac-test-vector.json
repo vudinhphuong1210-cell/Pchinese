@@ -1,0 +1,12 @@
+{
+  "purpose": "CONTRACT_TEST_ONLY — never use this secret outside deterministic Spring Boot and ai-service contract tests.",
+  "sharedSecretUtf8": "f11-hmac-contract-test-secret-2026",
+  "method": "POST",
+  "path": "/internal/v1/ai-buddy/respond",
+  "timestamp": "2026-09-11T00:00:00Z",
+  "nonce": "00000000-0000-4000-8000-000000000001",
+  "exactRequestBodyUtf8": "{\"capability\":\"AI_BUDDY\",\"context\":[],\"correlationId\":\"11111111-1111-4111-8111-111111111111\",\"currentMessage\":\"你好\",\"requestId\":\"22222222-2222-4222-8222-222222222222\",\"scenario\":\"DAILY_CONVERSATION\"}",
+  "contentSha256LowerHex": "4144a5e22b57d02e83bdf56027abcefcba28e63c33e853cb86bc84696da3a48e",
+  "canonicalUtf8": "POST\n/internal/v1/ai-buddy/respond\n2026-09-11T00:00:00Z\n00000000-0000-4000-8000-000000000001\n4144a5e22b57d02e83bdf56027abcefcba28e63c33e853cb86bc84696da3a48e",
+  "hmacSha256LowerHex": "441f49fb4a1aae9b7de599d81fdd6db74b2bf832d23ea8072449e0235de5fef7"
+}

@@ -11,6 +11,7 @@ import { SystemActivityTab } from './features/admin/SystemActivityTab.jsx';
 import { ContentAdminPage } from './features/admin/content/ContentAdminPage.jsx';
 import { SettingsPage } from './features/settings/SettingsPage.jsx';
 import { EntitlementPage } from './features/entitlement/EntitlementPage.jsx';
+import { AiBuddyPage } from './features/ai-buddy/AiBuddyPage.jsx';
 import { PremiumUpgradeModal } from './features/entitlement/PremiumUpgradeModal.jsx';
 import { authSessionStore } from './features/auth/authSessionStore.js';
 import { authApi } from './api/auth.js';
@@ -113,6 +114,8 @@ export default function App() {
         {activeTab === 'dashboard' && <DashboardPage />}
 
         {activeTab === 'entitlement' && <EntitlementPage />}
+
+        {activeTab === 'ai-buddy' && <AiBuddyPage />}
 
         {activeTab === 'auth' && (
           <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">

@@ -13,6 +13,7 @@ import {
   Languages,
   LogOut,
   PanelLeft,
+  MessageCircle,
 } from 'lucide-react';
 
 export function Sidebar({
@@ -156,6 +157,25 @@ export function Sidebar({
             >
               <Headphones className="w-5 h-5 text-primary shrink-0" />
               {!isCollapsed && <span>Dictation</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectTab('ai-buddy')}
+              title="AI Buddy"
+              className={`${
+                isCollapsed
+                  ? 'w-11 h-11 mx-auto justify-center rounded-xl'
+                  : 'w-full h-11 px-3.5 rounded-md space-x-3'
+              } text-sm font-semibold flex items-center transition-all ${
+                activeTab === 'ai-buddy'
+                  ? 'bg-secondary text-foreground shadow-sm border border-border/80'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+              data-testid="nav-ai-buddy"
+            >
+              <MessageCircle className={`w-5 h-5 shrink-0 ${activeTab === 'ai-buddy' ? 'text-primary' : ''}`} />
+              {!isCollapsed && <span>AI Buddy</span>}
             </button>
 
             <button
