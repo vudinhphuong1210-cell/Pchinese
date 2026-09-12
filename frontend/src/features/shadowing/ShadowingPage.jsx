@@ -207,7 +207,7 @@ export function ShadowingPage({ segment, onBack, onPlayNativeSegment, onNextSegm
 
           {segment.vietnameseText && (
             <div className="text-sm text-muted-foreground italic">
-              "{segment.vietnameseText}"
+              &ldquo;{segment.vietnameseText}&rdquo;
             </div>
           )}
         </div>

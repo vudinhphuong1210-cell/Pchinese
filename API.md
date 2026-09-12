@@ -91,6 +91,7 @@ Frontend route guard chỉ phục vụ UX; backend vẫn kiểm tra authenticati
 | `/settings/sessions` | SessionSettingsPage | auth sessions/logout | Authenticated learner |
 | `/admin/content` | AdminContentPage | topics/lessons/segments/media writes | `ADMIN` UX guard + backend `ADMIN` |
 | `/admin/users` | AdminUsersPage | safe paginated user management, role, lock/unlock | `ADMIN` UX guard + backend `ADMIN`; no email/profile/learner-data browsing |
+| `/admin/ai` | AiAdministrationWorkspace | future plan policy, aggregate AI report and in-dashboard monitoring | `ADMIN` UX guard + backend `ADMIN`; no learner/event-level data, billing or entitlement mutation |
 
 Không render URL signed media hoặc provider identifier vào route. Nếu lesson `UNPUBLISHED`/`ARCHIVED`, UI nhận lỗi chuẩn từ backend và không cố dùng cached media URL.
 
@@ -308,6 +309,19 @@ Hai route sau không có prefix `/api/v1`, không có browser caller và không 
 | `admin.users.unlock` | `POST /users/{userId}/unlock` | `{ reason: "SECURITY" | "POLICY" | "USER_REQUEST" | "OTHER", note? }` | `ADMIN`; target khác actor; `OTHER` cần safe note; audit, learner sign in lại | MVP |
 
 Admin write responses phải trả state server mới nhất. User Management is server-paginated and returns the permitted `accountName`, UUID, lifecycle state and ADMIN role; a selected UUID is then used for the protected detail/command routes. `accountName` is the owner-set name or “Chưa đặt tên”, never email. The directory has no search and no other learner-private data. Invalid, unavailable hoặc unmanageable target trả safe result, không tiết lộ account/profile existence. Sau role hoặc lock change, target sessions bị invalidated. Không có Admin endpoint nào để grant/revoke entitlement/quota, hoặc browse attempts, saved words, recordings, progress hay conversations của learner.
+
+### F12 AI Operations (ADMIN only)
+
+| API key frontend | Method + backend URL | Request chính | Access | Status |
+| --- | --- | --- | --- | --- |
+| `adminAi.plans.list` | `GET /admin/ai/plans` | — | `ADMIN`; catalogue projections only | MVP |
+| `adminAi.plans.history` | `GET /admin/ai/plans/{planCode}/revisions` | page, size | `ADMIN`; immutable safe history | MVP |
+| `adminAi.plans.publish` | `POST /admin/ai/plans/{planCode}/revisions` | expectedCurrentVersion, reason, complete policy snapshot | `ADMIN`; prospective policy only | MVP |
+| `adminAi.plans.retire` | `POST /admin/ai/plans/{planCode}/retire` | expectedCurrentVersion, reason | `ADMIN`; cannot retire final Free policy | MVP |
+| `adminAi.usage.report` | `GET /admin/ai/usage-report` | bounded UTC range, optional plan/policy/capability | `ADMIN`; aggregate-only and max 50 days | MVP |
+| `adminAi.monitoring.*` | `/admin/ai/monitoring-rules`, `/admin/ai/monitoring-alerts`, `/admin/ai/audit-events` | validated rule/acknowledgement, pagination | `ADMIN`; dashboard alerts only | MVP |
+
+F12 never returns an AI usage event, learner identifier, learner content, provider payload, credential or diagnostic. Policy changes are immutable and apply only to new eligibility or a later server-owned allowance-cycle boundary; no F12 route grants, resets, reprices or revokes an individual entitlement.
 
 ## 12. Privacy endpoints — Phase 2
 

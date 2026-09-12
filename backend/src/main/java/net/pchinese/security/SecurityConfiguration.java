@@ -43,7 +43,8 @@ public class SecurityConfiguration {
                                 "/api/v1/auth/password-resets/**", "/api/v1/auth/login", "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/topics", "/api/v1/topics/**",
-                                "/api/v1/lessons", "/api/v1/lessons/**").permitAll()
+                                "/api/v1/lessons", "/api/v1/lessons/**",
+                                "/api/v1/dictionary", "/api/v1/dictionary/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) -> write(response, 401, objectMapper,
@@ -59,6 +60,7 @@ public class SecurityConfiguration {
     CorsConfigurationSource corsConfigurationSource(PchineseSecurityProperties properties) {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(properties.getAllowedOrigins());
+        config.setAllowedOriginPatterns(properties.getAllowedOriginPatterns());
         config.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Refresh-Request-Id", "X-Browser-Session-Id", "X-Correlation-Id"));
         config.setExposedHeaders(List.of("X-Correlation-Id"));

@@ -3,6 +3,7 @@ package net.pchinese.shadowing.infrastructure;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.pchinese.aibuddy.infrastructure.AiBuddyProperties;
 import net.pchinese.common.error.ApiException;
+import net.pchinese.aiops.domain.ProviderTelemetry;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
@@ -49,8 +50,14 @@ public class ShadowingAiClient {
             BigDecimal pronunciationScore,
             BigDecimal toneScore,
             BigDecimal rhythmScore,
-            String feedback
-    ) {}
+            String feedback,
+            ProviderTelemetry telemetry
+    ) {
+        public ShadowingAssessResponse(UUID correlationId, BigDecimal overallScore, BigDecimal pronunciationScore,
+                                       BigDecimal toneScore, BigDecimal rhythmScore, String feedback) {
+            this(correlationId, overallScore, pronunciationScore, toneScore, rhythmScore, feedback, null);
+        }
+    }
 
     public ShadowingAssessResponse assess(ShadowingAssessRequest request) {
         try {
@@ -62,7 +69,8 @@ public class ShadowingAiClient {
                         BigDecimal.valueOf(88),
                         BigDecimal.valueOf(82),
                         BigDecimal.valueOf(85),
-                        "Phát âm của bạn khá tốt! Hãy chú ý thanh điệu ở các từ cuối câu."
+                        "Phát âm của bạn khá tốt! Hãy chú ý thanh điệu ở các từ cuối câu.",
+                        null
                 );
             }
 
@@ -100,7 +108,8 @@ public class ShadowingAiClient {
                     BigDecimal.valueOf(80),
                     BigDecimal.valueOf(80),
                     BigDecimal.valueOf(80),
-                    "Đã ghi nhận bài luyện nói. Phát âm khá chuẩn xác."
+                    "Đã ghi nhận bài luyện nói. Phát âm khá chuẩn xác.",
+                    null
             );
         }
     }

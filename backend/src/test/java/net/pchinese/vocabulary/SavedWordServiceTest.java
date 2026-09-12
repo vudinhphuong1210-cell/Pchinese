@@ -85,6 +85,24 @@ class SavedWordServiceTest {
     }
 
     @Test
+    void saveWordCreatesAnUnversionedEntityForJpaToPersist() {
+        DictionaryEntryEntity entry = new DictionaryEntryEntity();
+        entry.setDictionaryEntryId(entryId);
+        entry.setPublicationState(PublicationState.PUBLISHED);
+
+        when(dictionaryEntryRepository.findById(entryId)).thenReturn(Optional.of(entry));
+        when(savedWordRepository.findByUserIdAndDictionaryEntryId(userId, entryId)).thenReturn(Optional.empty());
+        when(savedWordRepository.save(any(SavedWordEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        savedWordService.saveWord(userId, entryId, null);
+
+        org.mockito.ArgumentCaptor<SavedWordEntity> savedWord = org.mockito.ArgumentCaptor.forClass(SavedWordEntity.class);
+        verify(savedWordRepository).save(savedWord.capture());
+        assertNull(savedWord.getValue().getVersion());
+        verify(srsScheduleCommands).onSavedWordCreated(userId, savedWord.getValue().getSavedWordId());
+    }
+
+    @Test
     void updateNoteThrowsConflictErrorWhenVersionMismatch() {
         SavedWordEntity existing = new SavedWordEntity();
         existing.setSavedWordId(savedWordId);

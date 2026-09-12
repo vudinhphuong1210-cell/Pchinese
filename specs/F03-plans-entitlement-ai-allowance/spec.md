@@ -12,7 +12,7 @@
 
 ### Session 2026-09-05
 
-- Q: Chính sách AI allowance Free cho MVP nên là mức nào? → A: 30 lượt/30 ngày, reset theo chu kỳ entitlement của learner.
+- Q: Chính sách AI allowance Free cho MVP nên là mức nào? → A: Chính sách Free đang được server công bố xác định số lượt và chu kỳ; learner đang có entitlement chỉ nhận thay đổi ở ranh giới chu kỳ kế tiếp.
 - Q: Khi một yêu cầu AI đã giữ lượt nhưng không tạo được kết quả hợp lệ, allowance nên xử lý thế nào? → A: Hoàn đúng một lượt cho mọi lỗi sau khi giữ lượt mà không tạo được kết quả hợp lệ.
 - Q: Những thao tác nào nên tiêu thụ một AI allowance unit trong MVP? → A: Mỗi lần đánh giá phát âm thực tế và mỗi tin nhắn yêu cầu trợ lý trả lời tiêu thụ một lượt; mở phần luyện phát âm hoặc quản lý cuộc trò chuyện không tiêu thụ lượt.
 - Q: Khi tài khoản learner bị khóa rồi được mở khóa lại, entitlement và AI allowance nên hoạt động thế nào? → A: Giữ quota/cycle hiện có; lock không reset, unlock tiếp tục allowance còn lại.
@@ -83,9 +83,10 @@ with no remaining allowance receives a clear recoverable result before any AI wo
 ### Functional Requirements
 
 - **FR-001**: The MVP MUST automatically assign and enforce exactly one current Free entitlement
-  for every eligible learner. The Free entitlement provides 30 AI allowance units per rolling
-  30-day entitlement cycle. Locking or unlocking the learner account MUST preserve that current
-  entitlement, its cycle start, and its used-unit count.
+  for every eligible learner. Its allowance limit and period are a server-owned snapshot of the
+  current published Free policy at activation or the next allowance-cycle boundary. Locking or
+  unlocking the learner account MUST preserve that current entitlement, cycle snapshot, start and
+  used-unit count.
 - **FR-002**: A learner MUST be able to view only their own safe plan and allowance summary.
 - **FR-003**: The system MUST check and record one allowance unit before every actual
   pronunciation assessment and every learner message that requests an assistant reply; it MUST
@@ -99,7 +100,8 @@ with no remaining allowance receives a clear recoverable result before any AI wo
 - **FR-005**: Allowance state MUST be controlled only by the system and must not be changed by
   learner input or an administrator action.
 - **FR-006**: Paid Premium activation, upgrade journeys, payment-provider integration, and manual
-  entitlement/quota operations are out of scope for MVP.
+  entitlement/quota operations are out of scope for MVP. F12 may revise future global catalogue
+  policies but never creates a learner-level entitlement or changes an active cycle.
 - **FR-007**: Before an eligible pronunciation assessment or assistant reply begins, the system
   MUST reserve or reuse its usage record together as one indivisible action. Only the system MAY consume or
   refund the learner's allowance. A valid successful result consumes the reserved unit; a timeout,
@@ -136,8 +138,8 @@ with no remaining allowance receives a clear recoverable result before any AI wo
 ## Assumptions
 
 - An authenticated, active learner is eligible for Free access.
-- The Free entitlement cycle starts when access is granted; each completed 30-day cycle
-  resets its used-unit counter before the next eligible AI request is assessed.
+- The Free entitlement cycle starts when access is granted; each completed policy-defined cycle
+  creates a new server-owned allowance snapshot before the next eligible AI request is assessed.
 - The system confirms the learner is active before accessing entitlement or quota; an account lock is
   an access-state change, not an entitlement lifecycle event.
 - An actual pronunciation assessment and a learner message that requests an assistant reply each

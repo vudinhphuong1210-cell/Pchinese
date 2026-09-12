@@ -40,7 +40,7 @@ public class AccountLifecycleService {
         passwordPolicy.validate(password);
         String normalized = normalizeEmail(email);
         Instant now = Instant.now();
-        UserEntity user = users.findByEmailLookupHash(sensitiveValues.hashEmail(normalized)).orElse(null);
+        UserEntity user = users.findFirstByEmailLookupHashIn(sensitiveValues.emailLookupHashes(normalized)).orElse(null);
         if (user == null) {
             user = UserEntity.pending(sensitiveValues.encrypt(normalized), sensitiveValues.hashEmail(normalized), passwordEncoder.encode(password), now);
             users.save(user);
@@ -55,7 +55,7 @@ public class AccountLifecycleService {
     public void requestVerification(String email) {
         String normalized = normalizeEmail(email);
         Instant now = Instant.now();
-        users.findByEmailLookupHash(sensitiveValues.hashEmail(normalized))
+        users.findFirstByEmailLookupHashIn(sensitiveValues.emailLookupHashes(normalized))
                 .filter(user -> !user.isActiveVerified())
                 .ifPresent(user -> issueActionToken(user, ActionTokenPurpose.EMAIL_VERIFICATION, now));
     }
@@ -76,7 +76,7 @@ public class AccountLifecycleService {
     public void requestPasswordReset(String email) {
         String normalized = normalizeEmail(email);
         Instant now = Instant.now();
-        users.findByEmailLookupHash(sensitiveValues.hashEmail(normalized))
+        users.findFirstByEmailLookupHashIn(sensitiveValues.emailLookupHashes(normalized))
                 .filter(UserEntity::isActiveVerified)
                 .ifPresent(user -> issueActionToken(user, ActionTokenPurpose.PASSWORD_RESET, now));
     }

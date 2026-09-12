@@ -1,0 +1,26 @@
+[
+  {
+    "slide": 14,
+    "kind": "text",
+    "name": "text",
+    "needed": 57.6,
+    "available": 32.0,
+    "text": "Break down and\ranalyze"
+  },
+  {
+    "slide": 15,
+    "kind": "text",
+    "name": "text",
+    "needed": 33.6,
+    "available": 30.0,
+    "text": "Initial request"
+  },
+  {
+    "slide": 20,
+    "kind": "text",
+    "name": "text",
+    "needed": 86.4,
+    "available": 84.0,
+    "text": "send attempts per rolling\rminute. Logical retries do not\radd an attempt."
+  }
+]

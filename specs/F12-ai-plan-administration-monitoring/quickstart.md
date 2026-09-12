@@ -3,8 +3,12 @@
 ## Prerequisites
 
 1. The F12 feature-map amendment, F03 scope/contract revision and `DATA_short.md` schema revision
-   are approved together. The clean database contains the consolidated F03/F12 migration and the
-   stable `FREE` and `PREMIUM` plan identities.
+   are approved together. The clean database contains the canonical Supabase F03/F12 migrations
+   (including `20260912000000_f03_f12_ai_operations.sql`,
+   `20260912001000_f12_currency_varchar_fix.sql`,
+   `20260912002000_f10_review_idempotency.sql`, and
+   `20260912003000_auth_email_lookup_hash.sql`, and
+   `20260912004000_f12_measurement_key_varchar.sql`) and the stable `FREE` and `PREMIUM` plan identities.
 2. An active, server-authorized ADMIN account and a non-ADMIN learner account exist. F03 allowance
    services and deterministic F08/F11 telemetry fixtures are available; no test uses a live AI
    provider.
@@ -49,7 +53,6 @@ Run the applicable tests and build after implementation:
 ```powershell
 Set-Location backend
 .\mvnw.cmd test
-.\mvnw.cmd verify
 
 Set-Location ..\frontend
 npm test -- --runInBand
@@ -57,6 +60,18 @@ npm run lint
 npm run build
 ```
 
-Run migration integration coverage against a clean PostgreSQL-compatible database. Contract tests
-must exercise both public envelope/error responses and malformed/missing private telemetry without
-calling a real provider.
+Run migration integration coverage against a clean PostgreSQL-compatible database only through an
+isolated test profile. Do not run `mvn verify` with the default datasource: it can use the configured
+Supabase connection. Contract tests must exercise both public envelope/error responses and
+malformed/missing private telemetry without calling a real provider.
+
+## Implementation validation â€” 2026-09-12
+
+- Passed: `backend/mvn clean test` (77 tests), `frontend/npm test -- --runInBand` (61 tests),
+  `frontend/npm run lint` (0 errors; 19 pre-existing warnings), `frontend/npm run build`,
+  `ai-service/npm test` (2 tests), and `ai-service/npm run build`.
+- Skipped by request: Docker-backed clean-migration/integration validation and browser E2E.
+- Applied and verified on Supabase: the F12 currency correction, canonical F10 review-idempotency
+  migration, and stable seeded-account email lookup hash migration.
+- Follow-up before deployment: run the migration suite against an isolated PostgreSQL database and
+  enable the integration/E2E checks without a default remote datasource.

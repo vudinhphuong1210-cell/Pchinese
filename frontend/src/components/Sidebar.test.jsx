@@ -78,4 +78,26 @@ describe('F01 sidebar', () => {
     fireEvent.click(expandBtn);
     expect(screen.getByText('PCHINESE')).toBeInTheDocument();
   });
+
+  test('opens the dictionary, personal vocabulary and SRS review workspaces', () => {
+    const onSelectTab = jest.fn();
+    render(
+      <Sidebar
+        activeTab="dashboard"
+        onSelectTab={onSelectTab}
+        currentTheme="dark-pink"
+        onSelectTheme={jest.fn()}
+        authState={{ isAuthenticated: true, isAdmin: false }}
+        onLogout={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('nav-dictionary'));
+    fireEvent.click(screen.getByTestId('nav-vocabulary'));
+    fireEvent.click(screen.getByTestId('nav-review'));
+
+    expect(onSelectTab).toHaveBeenNthCalledWith(1, 'dictionary');
+    expect(onSelectTab).toHaveBeenNthCalledWith(2, 'vocabulary');
+    expect(onSelectTab).toHaveBeenNthCalledWith(3, 'review');
+  });
 });

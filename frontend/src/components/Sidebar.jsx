@@ -14,6 +14,7 @@ import {
   LogOut,
   PanelLeft,
   MessageCircle,
+  Activity,
 } from 'lucide-react';
 
 export function Sidebar({
@@ -208,16 +209,59 @@ export function Sidebar({
 
             <button
               type="button"
-              onClick={() => onSelectTab('dashboard')}
+              onClick={() => onSelectTab('dictionary')}
+              title="Tra từ điển"
+              className={`${
+                isCollapsed
+                  ? 'w-11 h-11 mx-auto justify-center rounded-xl'
+                  : 'w-full h-11 px-3.5 rounded-md space-x-3'
+              } text-sm font-semibold flex items-center transition-all ${
+                activeTab === 'dictionary'
+                  ? 'bg-secondary text-foreground shadow-sm border border-border/80'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+              data-testid="nav-dictionary"
+            >
+              <BookOpen className={`w-5 h-5 shrink-0 ${activeTab === 'dictionary' ? 'text-primary' : ''}`} />
+              {!isCollapsed && <span>Tra từ điển</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectTab('vocabulary')}
               title="Luyện từ vựng"
               className={`${
                 isCollapsed
                   ? 'w-11 h-11 mx-auto justify-center rounded-xl'
                   : 'w-full h-11 px-3.5 rounded-md space-x-3'
-              } text-sm font-semibold flex items-center text-muted-foreground hover:bg-accent hover:text-foreground transition-all`}
+              } text-sm font-semibold flex items-center transition-all ${
+                activeTab === 'vocabulary'
+                  ? 'bg-secondary text-foreground shadow-sm border border-border/80'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+              data-testid="nav-vocabulary"
             >
-              <BookOpen className="w-5 h-5 shrink-0" />
+              <BookOpen className={`w-5 h-5 shrink-0 ${activeTab === 'vocabulary' ? 'text-primary' : ''}`} />
               {!isCollapsed && <span>Luyện từ vựng</span>}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSelectTab('review')}
+              title="Ôn tập SRS"
+              className={`${
+                isCollapsed
+                  ? 'w-11 h-11 mx-auto justify-center rounded-xl'
+                  : 'w-full h-11 px-3.5 rounded-md space-x-3'
+              } text-sm font-semibold flex items-center transition-all ${
+                activeTab === 'review'
+                  ? 'bg-secondary text-foreground shadow-sm border border-border/80'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+              }`}
+              data-testid="nav-review"
+            >
+              <History className={`w-5 h-5 shrink-0 ${activeTab === 'review' ? 'text-primary' : ''}`} />
+              {!isCollapsed && <span>Ôn tập SRS</span>}
             </button>
           </nav>
         </div>
@@ -235,6 +279,24 @@ export function Sidebar({
             )}
 
             <nav className="space-y-1">
+              <button
+                type="button"
+                onClick={() => onSelectTab('admin-ai')}
+                title="AI Operations"
+                className={`${
+                  isCollapsed
+                    ? 'w-11 h-11 mx-auto justify-center rounded-xl'
+                    : 'w-full h-11 px-3.5 rounded-md space-x-3'
+                } text-sm font-semibold flex items-center transition-all ${
+                  activeTab === 'admin-ai'
+                    ? 'bg-secondary text-foreground shadow-sm border border-border/80'
+                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                }`}
+                data-testid="nav-admin-ai"
+              >
+                <Activity className={`w-5 h-5 shrink-0 ${activeTab === 'admin-ai' ? 'text-primary' : ''}`} />
+                {!isCollapsed && <span>AI Operations</span>}
+              </button>
               <button
                 type="button"
                 onClick={() => onSelectTab('admin-content')}

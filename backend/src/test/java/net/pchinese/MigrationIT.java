@@ -9,6 +9,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.sql.DriverManager;
 import java.nio.file.Path;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers(disabledWithoutDocker = true)
@@ -46,6 +48,9 @@ class MigrationIT {
             try (var auditTables = connection.getMetaData().getTables(null, null, "content_audit_events", new String[] {"TABLE"})) {
                 assertTrue(auditTables.next());
             }
+            try (var f12Tables = connection.getMetaData().getTables(null, null, "ai_operational_measurements", new String[] {"TABLE"})) {
+                assertTrue(f12Tables.next());
+            }
             try (var statement = connection.createStatement();
                  var triggers = statement.executeQuery("""
                          select tgname
@@ -55,6 +60,33 @@ class MigrationIT {
                          """)) {
                 assertTrue(triggers.next());
                 assertTrue("trg_content_audit_events_append_only".equals(triggers.getString(1)));
+            }
+            try (var statement = connection.createStatement();
+                 var policies = statement.executeQuery("select count(*) from plan_policy_versions where status = 'PUBLISHED' and subscription_plan_id = (select subscription_plan_id from subscription_plans where plan_code = 'FREE')")) {
+                assertTrue(policies.next());
+                assertEquals(1, policies.getInt(1));
+            }
+            try (var statement = connection.createStatement();
+                 var cycles = statement.executeQuery("select count(*) from entitlement_allowance_cycles where status = 'CURRENT'")) {
+                assertTrue(cycles.next());
+                assertTrue(cycles.getInt(1) >= 1);
+            }
+            try (var statement = connection.createStatement();
+                 var actor = statement.executeQuery("select user_id from users limit 1")) {
+                assertTrue(actor.next());
+                String actorId = actor.getString(1);
+                String auditId;
+                try (var insert = connection.prepareStatement("insert into ai_admin_audit_events (actor_user_id, event_type, target_type, target_id, outcome, occurred_at) values (?, 'POLICY_PUBLISHED', 'PLAN_POLICY', gen_random_uuid(), 'SUCCESS', now()) returning ai_admin_audit_event_id")) {
+                    insert.setObject(1, java.util.UUID.fromString(actorId));
+                    try (var inserted = insert.executeQuery()) {
+                        assertTrue(inserted.next());
+                        auditId = inserted.getString(1);
+                    }
+                }
+                try (var update = connection.prepareStatement("update ai_admin_audit_events set outcome = 'SUCCESS' where ai_admin_audit_event_id = ?")) {
+                    update.setObject(1, java.util.UUID.fromString(auditId));
+                    assertThrows(java.sql.SQLException.class, update::executeUpdate);
+                }
             }
         }
     }

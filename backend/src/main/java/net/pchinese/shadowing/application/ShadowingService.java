@@ -128,6 +128,7 @@ public class ShadowingService {
         attempt = attemptRepo.save(attempt);
 
         try {
+            long dispatchStartedAt = System.nanoTime();
             String corrId = CorrelationId.current();
             UUID correlationUuid = corrId != null ? UUID.fromString(corrId) : UUID.randomUUID();
 
@@ -154,7 +155,8 @@ public class ShadowingService {
             recording.markSucceeded(now);
             recordingRepo.save(recording);
 
-            allowanceService.succeed(reservation.eventId(), correlationUuid.toString());
+            long durationMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - dispatchStartedAt);
+            allowanceService.succeed(reservation.eventId(), correlationUuid.toString(), response.telemetry(), durationMs);
             progressService.updatePracticeMetrics(userId, segment.getLessonId(), null, response.overallScore());
 
             return toDto(attemptRepo.save(attempt));

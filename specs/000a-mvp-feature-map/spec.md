@@ -16,7 +16,7 @@
 
 - Q: Khi MVP chưa có thanh toán tự động và Admin không được cấp Premium thủ công, learner sẽ nhận Premium bằng cách nào? → A: MVP chỉ có Free; Premium và nút nâng cấp chưa mở cho learner.
 - Q: Trong dashboard Admin, Admin được phép quản lý tài khoản ở mức nào? → A: Role `ADMIN` và khóa/mở khóa tài khoản, không xem dữ liệu học tập.
-- Q: Dashboard Admin thống nhất cần được đưa vào MVP cùng F01/F04 hay để sau khi learner-facing MVP hoàn tất? → A: Có trong MVP, gồm các tab quản lý được phép của F01 và F04.
+- Q: Dashboard Admin thống nhất cần được đưa vào MVP cùng F01/F04 hay để sau khi learner-facing MVP hoàn tất? → A: Có trong MVP, gồm các tab quản lý được phép của F01, F04 và F12.
 - Q: Dictation và Shadowing sẽ là các bước luyện tập trong Lesson Player hay là hai màn hình độc lập? → A: Dictation trong Player, Shadowing là màn hình riêng.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -131,8 +131,9 @@ confirm that the feature has not taken on another feature's responsibility.
   reading learner-private data. Locking MUST end the target's active access, record an auditable
   reason, and be rejected for the acting administrator or the final active administrator.
 - **FR-013**: The MVP MUST provide one Admin dashboard containing only an Account/Roles tab for
-  F01 and a Content/Media tab for F04. The dashboard MUST NOT create any authority beyond those
-  two feature boundaries.
+  F01, a Content/Media tab for F04 and the aggregate-only AI operations workspace authorized by
+  F12. The dashboard MUST NOT create authority beyond those feature boundaries, expose learner
+  data, or permit manual entitlement/quota mutation.
 - **FR-014**: The MVP MUST present Dictation inside the Lesson Player and open Shadowing as a
   separate learner-owned practice screen from that player. Both flows MUST preserve the selected
   lesson and segment context without requiring the learner to reselect them.
@@ -144,7 +145,7 @@ confirm that the feature has not taken on another feature's responsibility.
 | F00 | Delivery foundation | Team can deliver governed product slices consistently. | Delivery team | Shared project setup, contract baseline, quality and release gates; no learner-facing behaviour. | None | Frontend and backend | Specified: `F00-delivery-foundation` |
 | F01 | Identity, account, and role administration | A learner can use a secure account and an authorized administrator can safely manage the `ADMIN` role and account access state. | Learner and administrator | Registration, verification, sign-in, credential recovery, active sessions, audited `ADMIN` role grant/revocation, and lock/unlock of another account; includes the Account/Roles tab of the MVP Admin dashboard; excludes learner-private data and Premium/quota changes. | F00 | Frontend and backend | Specified: `F01-identity-account-role-admin` |
 | F02 | Profile preferences | A signed-in learner can manage personal preferences. | Learner | Profile settings; excludes account creation, recovery, and device/session management. | F01 | Frontend and backend | Specified: `F02-profile-preferences` |
-| F03 | Plans, entitlement, and AI allowance | A learner can see the Free access state that the system automatically applies to their account. | Learner | Automatically assign and enforce the Free plan for MVP, including its AI allowance; excludes paid Premium activation, upgrade journeys, payment-provider integration, and all Admin grant/revoke/edit operations. | F01 | Frontend and backend | Specified: `F03-plans-entitlement-ai-allowance` |
+| F03 | Plans, entitlement, and AI allowance | A learner can see the Free access state that the system automatically applies to their account. | Learner | Automatically assign and enforce the server-selected Free policy and its AI allowance; excludes paid Premium activation, upgrade journeys, payment-provider integration, and all Admin grant/revoke/edit operations. F12 may manage future global catalogue policy only. | F01 | Frontend and backend | Specified: `F03-plans-entitlement-ai-allowance` |
 | F04 | Content administration | An authorized administrator can prepare and control learning content safely. | Administrator | Create, edit, publish, archive, and organize topics, lessons, segments, and media metadata; includes the Content/Media tab of the MVP Admin dashboard. MVP content is published as `FREE`. `PREMIUM` labelling is reserved for the later automated-billing feature. | F01 | Frontend and backend | Specified: `F04-content-administration` |
 | F05 | Course catalog and access | A visitor can find available Chinese-learning topics and lessons. | Visitor and learner | Browse and inspect published `FREE` content; excludes Premium lock/upgrade journeys, in-lesson progress, and practice submission. | F03, F04 | Frontend and backend | Specified: `F05-course-catalog-access` |
 | F06 | Lesson learning and progress | A learner can complete lesson segments and resume learning from an accurate progress state. | Learner | Lesson playback, segment completion, resume state, progress overview, and the in-player Dictation entry point; excludes assessment scoring. | F01, F05 | Frontend and backend | Specified: `F06-lesson-learning-progress` |
@@ -153,6 +154,7 @@ confirm that the feature has not taken on another feature's responsibility.
 | F09 | Dictionary and personal vocabulary | A learner can search a shared dictionary and save words to a private vocabulary list. | Visitor and learner | Dictionary discovery and learner-owned saved words; excludes scheduling of reviews. | F01, F04 | Frontend and backend | Specified: `F09-dictionary-personal-vocabulary` |
 | F10 | Spaced repetition review | A learner can review due vocabulary and see the next review schedule. | Learner | Due queue, review response, schedule update, and immutable review history. | F01, F09 | Frontend and backend | Specified: `F10-spaced-repetition-review` |
 | F11 | AI learning buddy | A learner can hold a protected learning conversation within their available AI allowance. | Learner | Conversation lifecycle, messages, safety feedback, allowance consumption, and deletion; excludes direct provider exposure. | F01, F03 | Frontend and backend | Specified: `F11-ai-learning-buddy` |
+| F12 | AI plan administration and monitoring | An authorized administrator can manage future plan-policy snapshots and privacy-safe aggregate AI operations. | Administrator | Immutable Free/Premium catalogue policies, aggregate usage reports, in-dashboard monitoring rules/alerts and safe audit history; excludes learner-level entitlement/quota mutation, billing, checkout, upgrades, raw AI content and external notifications. | F01, F03, F08, F11 | Frontend and backend | Specified: `F12-ai-plan-administration-monitoring` |
 
 ### Source and Policy Traceability
 
@@ -172,8 +174,9 @@ confirm that the feature has not taken on another feature's responsibility.
 - F01 and F03 establish the authorization and Free-plan decisions relied upon by protected learner
   journeys. Paid Premium journeys begin only in the later automated-billing feature.
 - The MVP Admin dashboard is a single workspace for the permitted role and account-status
-  management flow in F01 and content-management flow in F04. It is not a new authority and MUST
-  NOT expose learner-private data or manual entitlement/quota controls.
+  management flow in F01, content-management flow in F04, and the aggregate-only policy and
+  operations flow in F12. It is not a new authority and MUST NOT expose learner-private data or
+  manual entitlement/quota controls.
 - F04 provides the controlled content lifecycle required for F05, F06, F07, F08, and F09. Seed
   content used solely to verify a feature does not expand F04's scope.
 - F06 owns generic lesson progression. F07 and F08 own their assessment-specific results and may
@@ -225,8 +228,9 @@ confirm that the feature has not taken on another feature's responsibility.
   no learner receives Premium access before an automated-billing feature is approved.
 - An Admin account-management action is limited to another account's `ADMIN` role and lock/unlock
   status; it never permits private-data browsing or mutation and always requires an audit reason.
-- The MVP Admin dashboard has exactly the Account/Roles and Content/Media scopes mapped to F01 and
-  F04; any additional Admin capability requires a feature-map revision and its own specification.
+- The MVP Admin dashboard has exactly the Account/Roles, Content/Media, and F12 AI Operations
+  scopes. F12 manages future global policy and aggregates only; any additional Admin capability
+  requires a feature-map revision and its own specification.
 - Dictation remains an activity in the Lesson Player. Shadowing is the only additional learner
   practice screen opened from the player in MVP.
 - Phase 2 items remain out of scope unless the owner approves a new feature map revision.

@@ -26,7 +26,7 @@ public class SrsReviewEventEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "client_review_id")
+    @Column(name = "client_review_id", nullable = false)
     private UUID clientReviewId;
 
     @Enumerated(EnumType.STRING)

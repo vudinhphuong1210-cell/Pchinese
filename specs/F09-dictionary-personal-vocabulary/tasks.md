@@ -17,7 +17,7 @@
 
 **Purpose**: Establish an approved, reproducible implementation baseline before code or schema changes.
 
-- [X] T001 Inspect `DATA_short.md`, deployed Flyway history, and `backend/src/main/resources/db/migration/` before reserving `backend/src/main/resources/db/migration/V009__f09_dictionary_vocabulary.sql`; do not modify an applied migration or create a second unmerged F09 migration.
+- [X] T001 Inspect `DATA_short.md`, deployed Flyway history, and `supabase/migrations/` before reserving `supabase/migrations/20260911210000_f09_dictionary_vocabulary.sql`; do not modify an applied migration or create a second unmerged F09 migration.
 - [X] T002 [P] Create deterministic published, withdrawn, unavailable-media, Free, Premium, and reviewed-word fixtures in `backend/src/test/java/net/pchinese/support/DictionaryVocabularyFixtureFactory.java`.
 - [X] T003 [P] Add an isolated `performance` Playwright project and environment guard in `frontend/playwright.config.js` so the 100-user run cannot target a shared development database.
 
@@ -29,7 +29,7 @@
 
 **⚠️ CRITICAL**: Complete this phase before combining dictionary search or vocabulary mutations with real data.
 
-- [X] T004 Create `backend/src/main/resources/db/migration/V009__f09_dictionary_vocabulary.sql` with `dictionary_search_keys`; its rows must be unique by `(dictionary_entry_id, query_kind, normalized_key)` and indexed beginning with `(query_kind, normalized_key, match_rank, dictionary_entry_id)`. Add the saved-word unique `(user_id, dictionary_entry_id)` constraint, the `(user_id, status, saved_at, saved_word_id)` capacity index, and reconciled partial uniqueness for the single active `user_entitlements` row.
+- [X] T004 Create `supabase/migrations/20260911210000_f09_dictionary_vocabulary.sql` with `dictionary_search_keys`; its rows must be unique by `(dictionary_entry_id, query_kind, normalized_key)` and indexed beginning with `(query_kind, normalized_key, match_rank, dictionary_entry_id)`. Add the saved-word unique `(user_id, dictionary_entry_id)` constraint, the `(user_id, status, saved_at, saved_word_id)` capacity index, and reconciled partial uniqueness for the single active `user_entitlements` row.
 - [X] T005 [P] Implement `DictionaryEntryEntity`, `DictionarySearchKeyEntity`, `DictionaryEntryRepository`, and `DictionarySearchKeyRepository` in `backend/src/main/java/net/pchinese/dictionary/persistence/`, including only `PUBLISHED` search projections and deterministic whole-field/prefix/substring rank ordering.
 - [X] T006 [P] Implement `SavedWordEntity` and locked owner/capacity queries in `backend/src/main/java/net/pchinese/vocabulary/persistence/`; map “`personal_note_ciphertext` nullable encrypted plain text, maximum 500 characters”, `ACTIVE`/`DELETED`, `saved_at`, `deleted_at`, and optimistic `version` exactly as defined in `data-model.md`.
 - [X] T007 [P] Add locked effective-plan resolution and idempotent Premium-expiry reconciliation in `backend/src/main/java/net/pchinese/entitlement/application/EffectiveEntitlementService.java`, `backend/src/main/java/net/pchinese/entitlement/application/EntitlementLifecycleService.java`, and `backend/src/main/java/net/pchinese/entitlement/persistence/UserEntitlementRepository.java`; F03 must establish Free state before requesting F09 capacity enforcement.

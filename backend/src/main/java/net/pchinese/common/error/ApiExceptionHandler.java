@@ -9,15 +9,18 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ApiEnvelope<Void>> handleApi(ApiException exception) {
         return ResponseEntity.status(exception.status()).body(ApiEnvelope.failure(exception.code(), exception.getMessage()));
     }
 
-    @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class})
+    @ExceptionHandler({MethodArgumentNotValidException.class, ConstraintViolationException.class, IllegalArgumentException.class})
     ResponseEntity<ApiEnvelope<Void>> handleValidation(Exception exception) {
         return ResponseEntity.badRequest().body(ApiEnvelope.failure("VALIDATION_ERROR", "Request validation failed."));
     }
@@ -35,6 +38,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ApiEnvelope<Void>> handleUnexpected(Exception exception) {
+        log.error("Unhandled API exception", exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiEnvelope.failure(
                 "INTERNAL_ERROR", "The request could not be completed."));
     }

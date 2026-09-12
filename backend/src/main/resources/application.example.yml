@@ -36,4 +36,6 @@ pchinese:
     token-pepper: CHANGE_ME
     allowed-origins:
       - https://app.example.com
+    # Leave empty in production unless an approved origin pattern is specifically required.
+    allowed-origin-patterns: []
     cookie-secure: true

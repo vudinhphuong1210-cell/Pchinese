@@ -18,3 +18,4 @@ pchinese:
   security:
     cookie-secure: false
     allowed-origins: http://localhost:3000,http://localhost:5173
+    allowed-origin-patterns: http://localhost:[*],http://127.0.0.1:[*]

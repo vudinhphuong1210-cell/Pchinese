@@ -16,7 +16,7 @@ paths:
     get:
       tags: [AI Administration]
       operationId: listAiPlanPolicies
-      summary: List the current and retired Free/Premium policy summaries
+      summary: List the current Free/Premium policy summaries
       responses:
         '200': { $ref: '#/components/responses/PlanListResponse' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -439,8 +439,9 @@ components:
         note: { type: string, maxLength: 500 }
     AiAdminAuditEvent:
       type: object
-      required: [eventType, targetType, occurredAt, outcome]
+      required: [actorUserId, eventType, targetType, occurredAt, outcome]
       properties:
+        actorUserId: { type: string, format: uuid, description: The authorized ADMIN actor; never a learner activity identifier. }
         eventType: { type: string, enum: [POLICY_PUBLISHED, PLAN_RETIRED, MONITORING_RULE_CHANGED, ALERT_ACKNOWLEDGED] }
         targetType: { type: string, enum: [PLAN_POLICY, MONITORING_RULE, MONITORING_ALERT] }
         occurredAt: { type: string, format: date-time }
