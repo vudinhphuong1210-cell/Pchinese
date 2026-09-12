@@ -43,7 +43,7 @@ public class SavedWordEntity {
 
     @Version
     @Column(name = "version", nullable = false)
-    private Long version = 0L;
+    private Long version;
 
     public SavedWordEntity() {
     }

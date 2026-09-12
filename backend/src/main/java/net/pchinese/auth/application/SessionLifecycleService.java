@@ -46,7 +46,7 @@ public class SessionLifecycleService {
 
     @Transactional
     public BrowserSession login(String email, String password, String deviceId, String deviceLabel, Platform platform) {
-        UserEntity user = users.findByEmailLookupHash(sensitiveValues.hashEmail(email.trim().toLowerCase(java.util.Locale.ROOT)))
+        UserEntity user = users.findFirstByEmailLookupHashIn(sensitiveValues.emailLookupHashes(email.trim().toLowerCase(java.util.Locale.ROOT)))
                 .orElseThrow(ApiException::unauthenticated);
         if (!passwordEncoder.matches(password, user.getPasswordHash())) throw ApiException.unauthenticated();
         if (!user.isActiveVerified()) throw ApiException.forbidden();

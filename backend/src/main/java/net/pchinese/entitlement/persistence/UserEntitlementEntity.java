@@ -10,6 +10,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import net.pchinese.aiops.persistence.PlanPolicyVersionEntity;
 import net.pchinese.entitlement.domain.EntitlementSourceType;
 import net.pchinese.entitlement.domain.EntitlementStatus;
 
@@ -30,6 +31,10 @@ public class UserEntitlementEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subscription_plan_id", nullable = false)
     private SubscriptionPlanEntity subscriptionPlan;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "current_policy_version_id", nullable = false)
+    private PlanPolicyVersionEntity currentPolicyVersion;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 24)
@@ -66,11 +71,13 @@ public class UserEntitlementEntity {
 
     protected UserEntitlementEntity() { }
 
-    public static UserEntitlementEntity createDefaultFree(UUID userId, SubscriptionPlanEntity freePlan, Instant now) {
+    public static UserEntitlementEntity createDefaultFree(UUID userId, SubscriptionPlanEntity freePlan,
+                                                           PlanPolicyVersionEntity policyVersion, Instant now) {
         UserEntitlementEntity entitlement = new UserEntitlementEntity();
         entitlement.userEntitlementId = UUID.randomUUID();
         entitlement.userId = userId;
         entitlement.subscriptionPlan = freePlan;
+        entitlement.currentPolicyVersion = policyVersion;
         entitlement.status = EntitlementStatus.ACTIVE;
         entitlement.sourceType = EntitlementSourceType.DEFAULT;
         entitlement.startsAt = now;
@@ -82,9 +89,15 @@ public class UserEntitlementEntity {
         return entitlement;
     }
 
+    /** Test-only compatibility factory for pre-F12 unit fixtures. Persisted rows always require a policy snapshot. */
+    public static UserEntitlementEntity createDefaultFree(UUID userId, SubscriptionPlanEntity freePlan, Instant now) {
+        return createDefaultFree(userId, freePlan, null, now);
+    }
+
     public UUID getUserEntitlementId() { return userEntitlementId; }
     public UUID getUserId() { return userId; }
     public SubscriptionPlanEntity getSubscriptionPlan() { return subscriptionPlan; }
+    public PlanPolicyVersionEntity getCurrentPolicyVersion() { return currentPolicyVersion; }
     public EntitlementStatus getStatus() { return status; }
     public EntitlementSourceType getSourceType() { return sourceType; }
     public byte[] getExternalReferenceCiphertext() { return externalReferenceCiphertext; }
@@ -117,6 +130,15 @@ public class UserEntitlementEntity {
 
     public void incrementUsedUnits(int units, Instant now) {
         this.aiUsedUnits += units;
+        this.updatedAt = now;
+    }
+
+    /** Legacy counters remain synchronized for old learner projections while cycle rows are authoritative. */
+    public void synchronizeCycleSnapshot(PlanPolicyVersionEntity policyVersion, Instant cycleStartedAt,
+                                         int usedUnits, Instant now) {
+        this.currentPolicyVersion = policyVersion;
+        this.aiQuotaPeriodStartedAt = cycleStartedAt;
+        this.aiUsedUnits = usedUnits;
         this.updatedAt = now;
     }
 

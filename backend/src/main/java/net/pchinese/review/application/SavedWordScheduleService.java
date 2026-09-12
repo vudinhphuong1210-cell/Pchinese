@@ -43,7 +43,7 @@ public class SavedWordScheduleService implements SrsScheduleCommands {
                             null,
                             now,
                             now,
-                            0L
+                            null
                     );
                     scheduleRepository.save(newSchedule);
                 }

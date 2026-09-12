@@ -82,7 +82,7 @@ backend/
     |   `-- resources/
     |       |-- application.yml
     |       |-- application-local.yml           # no committed credentials
-    |       `-- db/migration/                   # approved Flyway schema migrations only
+    |       `-- application.yml                  # Flyway reads ../../supabase/migrations
     `-- test/
         `-- java/net/pchinese/
             |-- unit/                           # focused service/domain tests

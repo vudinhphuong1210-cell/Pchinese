@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export function DictionaryEntryPanel({ entry, onClose, onSaveWord }) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saveSucceeded, setSaveSucceeded] = useState(false);
+
   if (!entry) return null;
 
   let parsedSenses = [];
@@ -9,6 +13,21 @@ export function DictionaryEntryPanel({ entry, onClose, onSaveWord }) {
   } catch (_e) {
     parsedSenses = [];
   }
+
+  const handleSaveWord = async () => {
+    if (!onSaveWord || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await onSaveWord(entry.dictionaryEntryId);
+      setSaveSucceeded(true);
+    } catch (error) {
+      setSaveSucceeded(false);
+      setSaveError(error?.error?.message || 'Không thể lưu từ vào kho từ vựng. Vui lòng thử lại.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div
@@ -69,12 +88,18 @@ export function DictionaryEntryPanel({ entry, onClose, onSaveWord }) {
       </div>
 
       {onSaveWord && (
-        <button
-          onClick={() => onSaveWord(entry.dictionaryEntryId)}
-          className="min-w-[44px] min-h-[44px] w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg shadow transition focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
-        >
-          Lưu vào từ vựng cá nhân
-        </button>
+        <div className="space-y-3">
+          {saveError && <p className="text-sm text-destructive" role="alert">{saveError}</p>}
+          {saveSucceeded && <p className="text-sm text-emerald-600 dark:text-emerald-400" role="status">Đã lưu vào kho từ vựng cá nhân.</p>}
+          <button
+            type="button"
+            onClick={handleSaveWord}
+            disabled={isSaving}
+            className="min-w-[44px] min-h-[44px] w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-medium rounded-lg shadow transition focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+          >
+            {isSaving ? 'Đang lưu...' : 'Lưu vào từ vựng cá nhân'}
+          </button>
+        </div>
       )}
     </div>
   );

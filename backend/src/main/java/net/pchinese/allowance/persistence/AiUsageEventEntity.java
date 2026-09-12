@@ -11,6 +11,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import net.pchinese.allowance.domain.AllowanceEventStatus;
 import net.pchinese.allowance.domain.AllowanceFeatureType;
+import net.pchinese.aiops.persistence.PlanPolicyVersionEntity;
+import net.pchinese.entitlement.persistence.EntitlementAllowanceCycleEntity;
 import net.pchinese.entitlement.persistence.UserEntitlementEntity;
 import org.hibernate.annotations.JdbcTypeCode;
 
@@ -31,6 +33,14 @@ public class AiUsageEventEntity {
 
     @Column(name = "user_id", nullable = false)
     private UUID userId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "entitlement_allowance_cycle_id", nullable = false)
+    private EntitlementAllowanceCycleEntity allowanceCycle;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_policy_version_id", nullable = false)
+    private PlanPolicyVersionEntity policyVersion;
 
     @Column(name = "client_request_id", nullable = false)
     private UUID clientRequestId;
@@ -64,6 +74,26 @@ public class AiUsageEventEntity {
 
     protected AiUsageEventEntity() { }
 
+    public static AiUsageEventEntity createReserved(UserEntitlementEntity userEntitlement,
+                                                   EntitlementAllowanceCycleEntity allowanceCycle,
+                                                   UUID userId, UUID clientRequestId,
+                                                   String fingerprintHash, AllowanceFeatureType featureType, short requestedUnits, Instant now) {
+        AiUsageEventEntity event = new AiUsageEventEntity();
+        event.aiUsageEventId = UUID.randomUUID();
+        event.userEntitlement = userEntitlement;
+        event.allowanceCycle = allowanceCycle;
+        event.policyVersion = allowanceCycle.getPolicyVersion();
+        event.userId = userId;
+        event.clientRequestId = clientRequestId;
+        event.requestFingerprintHash = fingerprintHash;
+        event.featureType = featureType;
+        event.requestedUnits = requestedUnits;
+        event.status = AllowanceEventStatus.RESERVED;
+        event.createdAt = now;
+        return event;
+    }
+
+    /** Test-only compatibility factory for pre-F12 unit fixtures. Persisted events bind a cycle and policy. */
     public static AiUsageEventEntity createReserved(UserEntitlementEntity userEntitlement, UUID userId, UUID clientRequestId,
                                                    String fingerprintHash, AllowanceFeatureType featureType, short requestedUnits, Instant now) {
         AiUsageEventEntity event = new AiUsageEventEntity();
@@ -82,6 +112,8 @@ public class AiUsageEventEntity {
     public UUID getAiUsageEventId() { return aiUsageEventId; }
     public UserEntitlementEntity getUserEntitlement() { return userEntitlement; }
     public UUID getUserId() { return userId; }
+    public EntitlementAllowanceCycleEntity getAllowanceCycle() { return allowanceCycle; }
+    public PlanPolicyVersionEntity getPolicyVersion() { return policyVersion; }
     public UUID getClientRequestId() { return clientRequestId; }
     public String getRequestFingerprintHash() { return requestFingerprintHash; }
     public AllowanceFeatureType getFeatureType() { return featureType; }

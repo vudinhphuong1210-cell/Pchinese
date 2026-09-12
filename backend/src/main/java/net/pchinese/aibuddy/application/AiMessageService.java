@@ -31,13 +31,17 @@ public class AiMessageService {
     public MessagePairView send(UUID userId, UUID conversationId, UUID clientRequestId, String content) {
         PreparedRequest prepared = transactions.execute(status -> prepare(userId, conversationId, clientRequestId, content));
         if (prepared.replay() != null) return prepared.replay();
+        long dispatchStartedAt = System.nanoTime();
         try {
             AiBuddyClient.AiBuddyResponse response = client.respond(prepared.privateRequest());
-            return transactions.execute(status -> succeed(prepared, response));
+            long durationMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - dispatchStartedAt);
+            return transactions.execute(status -> succeed(prepared, response, durationMs));
         } catch (ApiException exception) {
-            transactions.executeWithoutResult(status -> fail(prepared, exception.code())); throw exception;
+            long durationMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - dispatchStartedAt);
+            transactions.executeWithoutResult(status -> fail(prepared, exception.code(), durationMs)); throw exception;
         } catch (RuntimeException exception) {
-            transactions.executeWithoutResult(status -> fail(prepared, "SERVICE_UNAVAILABLE"));
+            long durationMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - dispatchStartedAt);
+            transactions.executeWithoutResult(status -> fail(prepared, "SERVICE_UNAVAILABLE", durationMs));
             throw new ApiException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE", "AI service is temporarily unavailable.");
         }
     }
@@ -69,7 +73,7 @@ public class AiMessageService {
         return new PreparedRequest(conversation, learner, reservation.eventId(), null,
                 new AiBuddyClient.AiBuddyRequest(UUID.fromString(CorrelationId.current()), requestId, conversation.getScenario(), content.trim(), context));
     }
-    private MessagePairView succeed(PreparedRequest prepared, AiBuddyClient.AiBuddyResponse response) {
+    private MessagePairView succeed(PreparedRequest prepared, AiBuddyClient.AiBuddyResponse response, long durationMs) {
         if (!prepared.privateRequest().correlationId().equals(response.correlationId())) throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "PROVIDER_ERROR", "AI response could not be validated.");
         AiConversationEntity conversation = conversations.ownedActive(prepared.learner().getUserId(), prepared.conversation().getId()); Instant now = Instant.now();
         AiMessageEntity learner = messages.findById(prepared.learner().getId()).orElseThrow(ApiException::notFound); learner.complete(now);
@@ -77,13 +81,14 @@ public class AiMessageService {
                 crypto.encryptForConversation(conversation, response.chineseResponse().getBytes(StandardCharsets.UTF_8)),
                 crypto.encryptForConversation(conversation, response.vietnameseExplanation().getBytes(StandardCharsets.UTF_8)),
                 response.suggestion() == null ? null : crypto.encryptForConversation(conversation, response.suggestion().getBytes(StandardCharsets.UTF_8)), now);
-        messages.save(learner); messages.save(assistant); conversation.touchCompletedMessages(now); allowance.succeed(prepared.eventId(), response.correlationId().toString());
+        messages.save(learner); messages.save(assistant); conversation.touchCompletedMessages(now);
+        allowance.succeed(prepared.eventId(), response.correlationId().toString(), response.telemetry(), durationMs);
         return pair(conversation, learner, assistant);
     }
-    private void fail(PreparedRequest prepared, String code) {
+    private void fail(PreparedRequest prepared, String code, long durationMs) {
         AiMessageEntity learner = messages.findById(prepared.learner().getId()).orElse(null);
         if (learner != null && learner.getStatus() == AiMessageStatus.PENDING) { learner.fail(code, Instant.now()); messages.save(learner); }
-        allowance.refundOnce(prepared.eventId(), code);
+        allowance.refundOnce(prepared.eventId(), code, null, durationMs);
     }
     private MessagePairView pair(AiConversationEntity conversation, AiMessageEntity learner, AiMessageEntity assistant) {
         return new MessagePairView(message(conversation, learner), message(conversation, assistant));

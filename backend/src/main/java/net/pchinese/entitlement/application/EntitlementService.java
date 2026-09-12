@@ -5,17 +5,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Service
 public class EntitlementService {
-    private static final int ROLLING_CYCLE_DAYS = 30;
-
     private final EntitlementProvisioningService provisioningService;
+    private final EntitlementCycleService cycleService;
 
-    public EntitlementService(EntitlementProvisioningService provisioningService) {
+    public EntitlementService(EntitlementProvisioningService provisioningService, EntitlementCycleService cycleService) {
         this.provisioningService = provisioningService;
+        this.cycleService = cycleService;
     }
 
     @Transactional
@@ -23,13 +22,12 @@ public class EntitlementService {
         Instant now = Instant.now();
         UserEntitlementEntity entitlement = provisioningService.ensureFreeEntitlement(userId);
         
-        entitlement.rollCycleIfExpired(now, ROLLING_CYCLE_DAYS);
-
-        int limit = entitlement.getSubscriptionPlan().getAiQuotaUnits();
-        int used = entitlement.getAiUsedUnits();
+        var cycle = cycleService.ensureCurrentCycleLocked(entitlement, now);
+        int limit = cycle.getAllowanceLimit();
+        int used = cycle.getUsedUnits();
         int remaining = Math.max(0, limit - used);
-        Instant cycleStart = entitlement.getAiQuotaPeriodStartedAt();
-        Instant cycleEnd = cycleStart.plus(ROLLING_CYCLE_DAYS, ChronoUnit.DAYS);
+        Instant cycleStart = cycle.getCycleStartedAt();
+        Instant cycleEnd = cycle.getCycleEndsAt();
 
         return new EntitlementSummary(
                 entitlement.getSubscriptionPlan().getPlanCode().name(),

@@ -137,7 +137,7 @@ class ShadowingServiceTest {
         assertNotNull(view);
         assertEquals(ShadowingAttemptStatus.EVALUATED, view.status());
         assertEquals(BigDecimal.valueOf(90), view.overallScore());
-        verify(allowanceService).succeed(eq(eventId), anyString());
+        verify(allowanceService).succeed(eq(eventId), anyString(), isNull(), anyLong());
         verify(progressService).updatePracticeMetrics(userId, lessonId, null, BigDecimal.valueOf(90));
     }
 

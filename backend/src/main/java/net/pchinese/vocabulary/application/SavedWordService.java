@@ -63,7 +63,7 @@ public class SavedWordService {
             if (notePlaintext != null) {
                 savedWord.setPersonalNoteCiphertext(noteCipherService.encryptNote(userId, notePlaintext));
             }
-            savedWordRepository.save(savedWord);
+            savedWord = savedWordRepository.save(savedWord);
             srsScheduleCommands.onSavedWordRestored(userId, savedWord.getSavedWordId());
         } else {
             savedWord = new SavedWordEntity();
@@ -75,7 +75,7 @@ public class SavedWordService {
             if (notePlaintext != null) {
                 savedWord.setPersonalNoteCiphertext(noteCipherService.encryptNote(userId, notePlaintext));
             }
-            savedWordRepository.save(savedWord);
+            savedWord = savedWordRepository.save(savedWord);
             srsScheduleCommands.onSavedWordCreated(userId, savedWord.getSavedWordId());
         }
 

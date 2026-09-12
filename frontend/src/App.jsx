@@ -12,14 +12,17 @@ import { ResetPasswordForm } from './features/auth/ResetPasswordForm.jsx';
 import { AccountRolesTab } from './features/admin/AccountRolesTab.jsx';
 import { SystemActivityTab } from './features/admin/SystemActivityTab.jsx';
 import { ContentAdminPage } from './features/admin/content/ContentAdminPage.jsx';
+import { AiAdministrationWorkspace } from './features/admin/ai/AiAdministrationWorkspace.jsx';
 import { SettingsPage } from './features/settings/SettingsPage.jsx';
 import { EntitlementPage } from './features/entitlement/EntitlementPage.jsx';
 import { AiBuddyPage } from './features/ai-buddy/AiBuddyPage.jsx';
+import { DictionaryPage } from './features/dictionary/DictionaryPage.jsx';
 import { VocabularyPage } from './features/vocabulary/VocabularyPage.jsx';
 import { ReviewPage } from './features/review/ReviewPage.jsx';
 import { PremiumUpgradeModal } from './features/entitlement/PremiumUpgradeModal.jsx';
 import { authSessionStore } from './features/auth/authSessionStore.js';
 import { authApi } from './api/auth.js';
+import { saveWord } from './api/dictionary.js';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -72,7 +75,7 @@ export default function App() {
   }, [currentTheme]);
 
   useEffect(() => {
-    if ((activeTab === 'admin' || activeTab === 'admin-audit' || activeTab === 'admin-content') && !authState.isAdmin) {
+    if ((activeTab === 'admin' || activeTab === 'admin-audit' || activeTab === 'admin-content' || activeTab === 'admin-ai') && !authState.isAdmin) {
       setActiveTab('dashboard');
     }
   }, [activeTab, authState.isAdmin]);
@@ -93,7 +96,7 @@ export default function App() {
   };
 
   const handleSelectTab = (tab) => {
-    if ((tab === 'admin' || tab === 'admin-audit' || tab === 'admin-content') && !authState.isAdmin) {
+    if ((tab === 'admin' || tab === 'admin-audit' || tab === 'admin-content' || tab === 'admin-ai') && !authState.isAdmin) {
       setActiveTab('dashboard');
       return;
     }
@@ -105,6 +108,8 @@ export default function App() {
     setActiveLessonId(lessonId);
     setActiveTab('lesson-detail');
   };
+
+  const handleSaveWord = (dictionaryEntryId) => saveWord(dictionaryEntryId);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col lg:flex-row antialiased font-sans">
@@ -164,6 +169,9 @@ export default function App() {
 
         {activeTab === 'ai-buddy' && <AiBuddyPage />}
 
+        {activeTab === 'dictionary' && (
+          <DictionaryPage onSaveWord={handleSaveWord} />
+        )}
         {activeTab === 'vocabulary' && <VocabularyPage />}
 
         {activeTab === 'review' && <ReviewPage />}
@@ -223,6 +231,12 @@ export default function App() {
         {activeTab === 'admin-audit' && authState.isAdmin && (
           <div className="flex justify-center py-6">
             <SystemActivityTab />
+          </div>
+        )}
+
+        {activeTab === 'admin-ai' && authState.isAdmin && (
+          <div className="py-2">
+            <AiAdministrationWorkspace />
           </div>
         )}
       </main>

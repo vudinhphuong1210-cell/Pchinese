@@ -55,7 +55,7 @@ public class RefreshRequestSecurityFilter extends OncePerRequestFilter {
             try { origin = new URI(referer).getScheme() + "://" + new URI(referer).getAuthority(); }
             catch (Exception ignored) { return false; }
         }
-        return properties.getAllowedOrigins().contains(origin);
+        return properties.permitsOrigin(origin);
     }
     private String cookie(HttpServletRequest request, String name) {
         if (request.getCookies() == null) return null;

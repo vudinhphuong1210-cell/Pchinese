@@ -12,9 +12,11 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 
 @Service
 public class SensitiveValueService {
@@ -45,7 +47,19 @@ public class SensitiveValueService {
         }
     }
 
-    public String hashEmail(String normalizedEmail) { return hmac("email:" + normalizedEmail); }
+    /**
+     * A deterministic lookup key lets the seeded development accounts work in every deployment.
+     * Email ciphertext and password storage remain protected independently; refresh/action tokens
+     * continue to use a secret-keyed HMAC below.
+     */
+    public String hashEmail(String normalizedEmail) { return sha256("email:" + normalizedEmail); }
+
+    /** Accept legacy HMAC lookup rows while new registrations use the stable lookup key. */
+    public List<String> emailLookupHashes(String normalizedEmail) {
+        return List.of(hashEmail(normalizedEmail), legacyHashEmail(normalizedEmail));
+    }
+
+    public String legacyHashEmail(String normalizedEmail) { return hmac("email:" + normalizedEmail); }
     public String hashToken(String rawToken) { return hmac("token:" + rawToken); }
 
     public String randomOpaqueToken() {
@@ -90,6 +104,14 @@ public class SensitiveValueService {
             return HexFormat.of().formatHex(mac.doFinal(value.getBytes(StandardCharsets.UTF_8)));
         } catch (GeneralSecurityException exception) {
             throw new IllegalStateException("Unable to hash sensitive value.", exception);
+        }
+    }
+    private String sha256(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (GeneralSecurityException exception) {
+            throw new IllegalStateException("Unable to hash email lookup value.", exception);
         }
     }
     private byte[] randomBytes(int size) { byte[] bytes = new byte[size]; RANDOM.nextBytes(bytes); return bytes; }

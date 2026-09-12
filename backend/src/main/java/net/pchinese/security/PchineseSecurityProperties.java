@@ -1,6 +1,7 @@
 package net.pchinese.security;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.web.cors.CorsConfiguration;
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ public class PchineseSecurityProperties {
     private String encryptionKeyBase64;
     private String tokenPepper;
     private List<String> allowedOrigins = List.of();
+    private List<String> allowedOriginPatterns = List.of();
     private boolean cookieSecure = true;
 
     public String getIssuer() { return issuer; }
@@ -32,6 +34,17 @@ public class PchineseSecurityProperties {
     public void setTokenPepper(String tokenPepper) { this.tokenPepper = tokenPepper; }
     public List<String> getAllowedOrigins() { return allowedOrigins; }
     public void setAllowedOrigins(List<String> allowedOrigins) { this.allowedOrigins = allowedOrigins == null ? List.of() : allowedOrigins; }
+    public List<String> getAllowedOriginPatterns() { return allowedOriginPatterns; }
+    public void setAllowedOriginPatterns(List<String> allowedOriginPatterns) {
+        this.allowedOriginPatterns = allowedOriginPatterns == null ? List.of() : allowedOriginPatterns;
+    }
+    public boolean permitsOrigin(String origin) {
+        if (origin == null || origin.isBlank()) return false;
+        if (allowedOrigins.contains(origin)) return true;
+        CorsConfiguration cors = new CorsConfiguration();
+        cors.setAllowedOriginPatterns(allowedOriginPatterns);
+        return cors.checkOrigin(origin) != null;
+    }
     public boolean isCookieSecure() { return cookieSecure; }
     public void setCookieSecure(boolean cookieSecure) { this.cookieSecure = cookieSecure; }
 }

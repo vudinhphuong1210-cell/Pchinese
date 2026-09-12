@@ -8,12 +8,15 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.UUID;
 import net.pchinese.users.domain.UserStatus;
 
 public interface UserRepository extends JpaRepository<UserEntity, UUID> {
     Optional<UserEntity> findByEmailLookupHash(String emailLookupHash);
+
+    Optional<UserEntity> findFirstByEmailLookupHashIn(Collection<String> emailLookupHashes);
 
     Optional<UserEntity> findByUserIdAndStatusAndEmailVerifiedAtIsNotNull(UUID userId, UserStatus status);
 

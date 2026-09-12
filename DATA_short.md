@@ -4,7 +4,7 @@
 CREATE TABLE public.users (
 user_id uuid NOT NULL,
 email_ciphertext bytea NOT NULL,
-email_lookup_hash character NOT NULL UNIQUE,
+email_lookup_hash character varying(64) NOT NULL UNIQUE,
 password_hash character varying NOT NULL,
 status character varying NOT NULL DEFAULT 'PENDING_VERIFICATION'::character varying CHECK (status::text = ANY (ARRAY['PENDING_VERIFICATION'::character varying, 'ACTIVE'::character varying, 'LOCKED'::character varying, 'DISABLED'::character varying]::text[])),
 email_verified_at timestamp with time zone,
@@ -156,10 +156,39 @@ created_at timestamp with time zone NOT NULL,
 updated_at timestamp with time zone NOT NULL,
 CONSTRAINT subscription_plans_pkey PRIMARY KEY (subscription_plan_id)
 );
+-- F12 keeps the two stable plan identities above. Catalogue and allowance values are immutable
+-- snapshots in plan_policy_versions; legacy display/quota columns are retained for compatibility.
+CREATE TABLE public.plan_policy_versions (
+plan_policy_version_id uuid NOT NULL,
+subscription_plan_id uuid NOT NULL,
+revision_number integer NOT NULL CHECK (revision_number >= 1),
+status character varying NOT NULL CHECK (status IN ('PUBLISHED', 'SUPERSEDED', 'RETIRED')),
+display_name character varying(120) NOT NULL,
+description character varying(2000),
+benefits jsonb NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(benefits) = 'array'),
+availability_state character varying(16) NOT NULL CHECK (availability_state IN ('ACTIVE', 'HIDDEN')),
+price_amount numeric(19,4) NOT NULL CHECK (price_amount >= 0),
+currency character varying(3) NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+price_interval character varying(16) NOT NULL CHECK (price_interval IN ('MONTH', 'YEAR')),
+display_label character varying(120),
+allowance_units integer NOT NULL CHECK (allowance_units >= 0),
+allowance_period character varying(16) NOT NULL CHECK (allowance_period IN ('DAY', 'MONTH')),
+reason character varying(500) NOT NULL,
+created_by_user_id uuid,
+created_at timestamp with time zone NOT NULL,
+retired_at timestamp with time zone,
+version bigint NOT NULL DEFAULT 0,
+CONSTRAINT plan_policy_versions_pkey PRIMARY KEY (plan_policy_version_id),
+CONSTRAINT fk_plan_policy_versions_plan FOREIGN KEY (subscription_plan_id) REFERENCES public.subscription_plans(subscription_plan_id),
+CONSTRAINT fk_plan_policy_versions_actor FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id),
+CONSTRAINT uq_plan_policy_versions_plan_revision UNIQUE (subscription_plan_id, revision_number)
+);
+CREATE UNIQUE INDEX uq_plan_policy_versions_current ON public.plan_policy_versions (subscription_plan_id) WHERE status = 'PUBLISHED';
 CREATE TABLE public.user_entitlements (
 user_entitlement_id uuid NOT NULL,
 user_id uuid NOT NULL,
 subscription_plan_id uuid NOT NULL,
+current_policy_version_id uuid NOT NULL,
 status character varying NOT NULL CHECK (status::text = ANY (ARRAY['ACTIVE'::character varying, 'EXPIRED'::character varying, 'CANCELED'::character varying, 'REVOKED'::character varying]::text[])),
 source_type character varying NOT NULL CHECK (source_type::text = ANY (ARRAY['DEFAULT'::character varying, 'BILLING'::character varying]::text[])),
 external_reference_ciphertext bytea,
@@ -172,12 +201,33 @@ updated_at timestamp with time zone NOT NULL,
 version bigint NOT NULL DEFAULT 0,
 CONSTRAINT user_entitlements_pkey PRIMARY KEY (user_entitlement_id),
 CONSTRAINT fk_user_entitlements_user FOREIGN KEY (user_id) REFERENCES public.users(user_id),
-CONSTRAINT fk_user_entitlements_plan FOREIGN KEY (subscription_plan_id) REFERENCES public.subscription_plans(subscription_plan_id)
+CONSTRAINT fk_user_entitlements_plan FOREIGN KEY (subscription_plan_id) REFERENCES public.subscription_plans(subscription_plan_id),
+CONSTRAINT fk_user_entitlements_policy FOREIGN KEY (current_policy_version_id) REFERENCES public.plan_policy_versions(plan_policy_version_id)
 );
+CREATE TABLE public.entitlement_allowance_cycles (
+entitlement_allowance_cycle_id uuid NOT NULL,
+user_entitlement_id uuid NOT NULL,
+plan_policy_version_id uuid NOT NULL,
+cycle_started_at timestamp with time zone NOT NULL,
+cycle_ends_at timestamp with time zone NOT NULL,
+allowance_limit integer NOT NULL CHECK (allowance_limit >= 0),
+allowance_period character varying(16) NOT NULL CHECK (allowance_period IN ('DAY', 'MONTH')),
+used_units integer NOT NULL DEFAULT 0 CHECK (used_units >= 0),
+status character varying(16) NOT NULL CHECK (status IN ('CURRENT', 'CLOSED')),
+created_at timestamp with time zone NOT NULL,
+closed_at timestamp with time zone,
+version bigint NOT NULL DEFAULT 0,
+CONSTRAINT entitlement_allowance_cycles_pkey PRIMARY KEY (entitlement_allowance_cycle_id),
+CONSTRAINT fk_entitlement_allowance_cycles_entitlement FOREIGN KEY (user_entitlement_id) REFERENCES public.user_entitlements(user_entitlement_id),
+CONSTRAINT fk_entitlement_allowance_cycles_policy FOREIGN KEY (plan_policy_version_id) REFERENCES public.plan_policy_versions(plan_policy_version_id)
+);
+CREATE UNIQUE INDEX uq_entitlement_allowance_cycles_current ON public.entitlement_allowance_cycles (user_entitlement_id) WHERE status = 'CURRENT';
 CREATE TABLE public.ai_usage_events (
 ai_usage_event_id uuid NOT NULL,
 user_entitlement_id uuid NOT NULL,
 user_id uuid NOT NULL,
+entitlement_allowance_cycle_id uuid NOT NULL,
+plan_policy_version_id uuid NOT NULL,
 client_request_id uuid NOT NULL,
 request_fingerprint_hash character NOT NULL,
 feature_type character varying NOT NULL CHECK (feature_type::text = ANY (ARRAY['AI_BUDDY'::character varying, 'SHADOWING_ASSESSMENT'::character varying]::text[])),
@@ -190,8 +240,96 @@ completed_at timestamp with time zone,
 CONSTRAINT ai_usage_events_pkey PRIMARY KEY (ai_usage_event_id),
 CONSTRAINT fk_ai_usage_events_user FOREIGN KEY (user_id) REFERENCES public.users(user_id),
 CONSTRAINT fk_ai_usage_events_entitlement FOREIGN KEY (user_entitlement_id) REFERENCES public.user_entitlements(user_entitlement_id),
-CONSTRAINT fk_ai_usage_events_entitlement FOREIGN KEY (user_id) REFERENCES public.user_entitlements(user_id)
+CONSTRAINT fk_ai_usage_events_cycle FOREIGN KEY (entitlement_allowance_cycle_id) REFERENCES public.entitlement_allowance_cycles(entitlement_allowance_cycle_id),
+CONSTRAINT fk_ai_usage_events_policy FOREIGN KEY (plan_policy_version_id) REFERENCES public.plan_policy_versions(plan_policy_version_id)
 );
+CREATE INDEX ix_ai_usage_events_cycle_policy_status ON public.ai_usage_events (entitlement_allowance_cycle_id, plan_policy_version_id, status, created_at DESC);
+CREATE TABLE public.ai_operational_measurements (
+ai_operational_measurement_id uuid NOT NULL,
+measurement_key character varying(64) NOT NULL,
+ai_usage_event_id uuid,
+plan_policy_version_id uuid NOT NULL,
+capability character varying(32) NOT NULL CHECK (capability IN ('AI_BUDDY', 'SHADOWING_ASSESSMENT')),
+outcome character varying(32) NOT NULL CHECK (outcome IN ('PENDING', 'SUCCEEDED', 'QUOTA_DENIED', 'FAILED_REFUNDED', 'FAILED_CONSUMED')),
+reserved_units integer NOT NULL DEFAULT 0 CHECK (reserved_units >= 0),
+used_units integer NOT NULL DEFAULT 0 CHECK (used_units >= 0),
+refunded_units integer NOT NULL DEFAULT 0 CHECK (refunded_units >= 0),
+input_tokens bigint CHECK (input_tokens >= 0),
+output_tokens bigint CHECK (output_tokens >= 0),
+total_tokens bigint CHECK (total_tokens >= 0),
+estimated_cost numeric(19,6) CHECK (estimated_cost >= 0),
+cost_currency character varying(3) CHECK (cost_currency IS NULL OR cost_currency ~ '^[A-Z]{3}$'),
+provider_duration_ms bigint CHECK (provider_duration_ms >= 0),
+end_to_end_duration_ms bigint CHECK (end_to_end_duration_ms >= 0),
+failure_class character varying(32),
+occurred_at timestamp with time zone NOT NULL,
+finalized_at timestamp with time zone,
+CONSTRAINT ai_operational_measurements_pkey PRIMARY KEY (ai_operational_measurement_id),
+CONSTRAINT uq_ai_operational_measurements_key UNIQUE (measurement_key),
+CONSTRAINT uq_ai_operational_measurements_usage_event UNIQUE (ai_usage_event_id),
+CONSTRAINT fk_ai_operational_measurements_usage_event FOREIGN KEY (ai_usage_event_id) REFERENCES public.ai_usage_events(ai_usage_event_id),
+CONSTRAINT fk_ai_operational_measurements_policy FOREIGN KEY (plan_policy_version_id) REFERENCES public.plan_policy_versions(plan_policy_version_id),
+CONSTRAINT ck_ai_operational_measurements_cost_pair CHECK ((estimated_cost IS NULL) = (cost_currency IS NULL))
+);
+CREATE INDEX ix_ai_operational_measurements_report ON public.ai_operational_measurements (finalized_at, plan_policy_version_id, capability, outcome);
+CREATE TABLE public.ai_monitoring_rules (
+ai_monitoring_rule_id uuid NOT NULL,
+metric character varying(32) NOT NULL CHECK (metric IN ('TOKEN_VOLUME', 'ESTIMATED_COST', 'REQUEST_VOLUME', 'QUOTA_DENIAL_RATE', 'FAILURE_RATE', 'RESPONSE_TIME')),
+threshold numeric(19,6) NOT NULL CHECK (threshold >= 0),
+evaluation_window character varying(16) NOT NULL CHECK (evaluation_window IN ('ONE_HOUR', 'TWENTY_FOUR_HOURS')),
+subscription_plan_id uuid,
+plan_policy_version_id uuid,
+capability character varying(32) CHECK (capability IN ('AI_BUDDY', 'SHADOWING_ASSESSMENT')),
+enabled boolean NOT NULL,
+created_by_user_id uuid NOT NULL,
+updated_by_user_id uuid NOT NULL,
+created_at timestamp with time zone NOT NULL,
+updated_at timestamp with time zone NOT NULL,
+version bigint NOT NULL DEFAULT 0,
+CONSTRAINT ai_monitoring_rules_pkey PRIMARY KEY (ai_monitoring_rule_id),
+CONSTRAINT fk_ai_monitoring_rules_plan FOREIGN KEY (subscription_plan_id) REFERENCES public.subscription_plans(subscription_plan_id),
+CONSTRAINT fk_ai_monitoring_rules_policy FOREIGN KEY (plan_policy_version_id) REFERENCES public.plan_policy_versions(plan_policy_version_id),
+CONSTRAINT fk_ai_monitoring_rules_created_by FOREIGN KEY (created_by_user_id) REFERENCES public.users(user_id),
+CONSTRAINT fk_ai_monitoring_rules_updated_by FOREIGN KEY (updated_by_user_id) REFERENCES public.users(user_id)
+);
+CREATE TABLE public.ai_monitoring_alerts (
+ai_monitoring_alert_id uuid NOT NULL,
+ai_monitoring_rule_id uuid NOT NULL,
+state character varying(16) NOT NULL CHECK (state IN ('OPEN', 'ACKNOWLEDGED', 'RESOLVED')),
+metric character varying(32) NOT NULL,
+threshold numeric(19,6) NOT NULL,
+latest_value numeric(19,6) NOT NULL,
+partial_data boolean NOT NULL DEFAULT false,
+first_seen_at timestamp with time zone NOT NULL,
+last_evaluated_at timestamp with time zone NOT NULL,
+acknowledged_by_user_id uuid,
+acknowledged_at timestamp with time zone,
+acknowledgement_note character varying(500),
+resolved_at timestamp with time zone,
+version bigint NOT NULL DEFAULT 0,
+CONSTRAINT ai_monitoring_alerts_pkey PRIMARY KEY (ai_monitoring_alert_id),
+CONSTRAINT fk_ai_monitoring_alerts_rule FOREIGN KEY (ai_monitoring_rule_id) REFERENCES public.ai_monitoring_rules(ai_monitoring_rule_id),
+CONSTRAINT fk_ai_monitoring_alerts_ack_actor FOREIGN KEY (acknowledged_by_user_id) REFERENCES public.users(user_id)
+);
+CREATE UNIQUE INDEX uq_ai_monitoring_alerts_active_rule ON public.ai_monitoring_alerts (ai_monitoring_rule_id) WHERE state IN ('OPEN', 'ACKNOWLEDGED');
+CREATE TABLE public.ai_admin_audit_events (
+ai_admin_audit_event_id uuid NOT NULL,
+actor_user_id uuid NOT NULL,
+event_type character varying(32) NOT NULL CHECK (event_type IN ('POLICY_PUBLISHED', 'PLAN_RETIRED', 'MONITORING_RULE_CHANGED', 'ALERT_ACKNOWLEDGED')),
+target_type character varying(32) NOT NULL CHECK (target_type IN ('PLAN_POLICY', 'MONITORING_RULE', 'MONITORING_ALERT')),
+target_id uuid NOT NULL,
+correlation_id uuid,
+outcome character varying(16) NOT NULL CHECK (outcome = 'SUCCESS'),
+reason_or_note character varying(500),
+safe_before jsonb,
+safe_after jsonb,
+occurred_at timestamp with time zone NOT NULL,
+CONSTRAINT ai_admin_audit_events_pkey PRIMARY KEY (ai_admin_audit_event_id),
+CONSTRAINT fk_ai_admin_audit_events_actor FOREIGN KEY (actor_user_id) REFERENCES public.users(user_id),
+CONSTRAINT ck_ai_admin_audit_events_before_object CHECK (safe_before IS NULL OR jsonb_typeof(safe_before) = 'object'),
+CONSTRAINT ck_ai_admin_audit_events_after_object CHECK (safe_after IS NULL OR jsonb_typeof(safe_after) = 'object')
+);
+CREATE INDEX ix_ai_admin_audit_events_target_occurred ON public.ai_admin_audit_events (target_type, target_id, occurred_at DESC);
 CREATE TABLE public.topics (
 topic_id uuid NOT NULL,
 slug character varying NOT NULL UNIQUE,
@@ -339,6 +477,7 @@ CREATE TABLE public.srs_review_events (
 srs_review_event_id uuid NOT NULL,
 srs_schedule_id uuid NOT NULL,
 user_id uuid NOT NULL,
+client_review_id uuid NOT NULL,
 rating character varying NOT NULL CHECK (rating::text = ANY (ARRAY['AGAIN'::character varying, 'HARD'::character varying, 'GOOD'::character varying, 'EASY'::character varying]::text[])),
 previous_due_at timestamp with time zone NOT NULL,
 next_due_at timestamp with time zone NOT NULL,
@@ -351,6 +490,8 @@ CONSTRAINT fk_srs_review_events_schedule FOREIGN KEY (srs_schedule_id) REFERENCE
 CONSTRAINT fk_srs_review_events_schedule FOREIGN KEY (user_id) REFERENCES public.srs_schedules(user_id),
 CONSTRAINT fk_srs_review_events_user FOREIGN KEY (user_id) REFERENCES public.users(user_id)
 );
+CREATE UNIQUE INDEX uq_srs_review_events_user_client_review ON public.srs_review_events (user_id, client_review_id);
+CREATE INDEX ix_srs_schedules_user_status_due ON public.srs_schedules (user_id, status, due_at, srs_schedule_id);
 CREATE TABLE public.dictation_attempts (
 dictation_attempt_id uuid NOT NULL,
 user_id uuid NOT NULL,
