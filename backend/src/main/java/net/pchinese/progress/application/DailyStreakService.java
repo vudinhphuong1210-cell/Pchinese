@@ -29,6 +29,7 @@ public class DailyStreakService {
     private final UserRepository users;
     private final Clock clock;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public DailyStreakService(DailyCheckInRepository checkIns, UserRepository users) {
         this(checkIns, users, Clock.systemUTC());
     }
