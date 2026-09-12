@@ -8,9 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import net.pchinese.users.domain.UserStatus;
-import org.hibernate.annotations.JdbcTypeCode;
 
-import java.sql.Types;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -22,7 +20,6 @@ public class UserEntity {
     private UUID userId;
     @Column(name = "email_ciphertext", nullable = false)
     private byte[] emailCiphertext;
-    @JdbcTypeCode(Types.CHAR)
     @Column(name = "email_lookup_hash", nullable = false, unique = true, length = 64)
     private String emailLookupHash;
     @Column(name = "password_hash", nullable = false)

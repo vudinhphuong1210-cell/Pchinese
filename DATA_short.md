@@ -34,6 +34,17 @@ CONSTRAINT user_roles_pkey PRIMARY KEY (user_role_grant_id),
 CONSTRAINT fk_user_roles_user FOREIGN KEY (user_id) REFERENCES public.users(user_id),
 CONSTRAINT fk_user_roles_granted_by FOREIGN KEY (granted_by_user_id) REFERENCES public.users(user_id)
 );
+CREATE TABLE public.daily_check_ins (
+daily_check_in_id uuid NOT NULL,
+user_id uuid NOT NULL,
+check_in_date date NOT NULL,
+awarded_xp integer NOT NULL DEFAULT 10 CHECK (awarded_xp >= 0),
+created_at timestamp with time zone NOT NULL,
+CONSTRAINT daily_check_ins_pkey PRIMARY KEY (daily_check_in_id),
+CONSTRAINT uq_daily_check_ins_user_date UNIQUE (user_id, check_in_date),
+CONSTRAINT fk_daily_check_ins_user FOREIGN KEY (user_id) REFERENCES public.users(user_id)
+);
+CREATE INDEX ix_daily_check_ins_user_date ON public.daily_check_ins (user_id, check_in_date DESC);
 CREATE TABLE public.auth_sessions (
 session_id uuid NOT NULL,
 user_id uuid NOT NULL,

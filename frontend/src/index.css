@@ -62,6 +62,123 @@
     --colors-ring: 330 80% 50%;
   }
 
+  [data-theme="light-purple"] {
+    --colors-background: 270 35% 97%;
+    --colors-foreground: 260 35% 12%;
+    --colors-card: 0 0% 100%;
+    --colors-popover: 0 0% 100%;
+    --colors-primary: 265 75% 52%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 265 35% 91%;
+    --colors-secondary-foreground: 260 35% 16%;
+    --colors-muted: 265 24% 92%;
+    --colors-muted-foreground: 260 14% 38%;
+    --colors-accent: 265 35% 91%;
+    --colors-border: 265 22% 82%;
+    --colors-input: 265 22% 82%;
+    --colors-ring: 265 75% 52%;
+  }
+
+  [data-theme="light-pink"] {
+    --colors-background: 330 40% 97%;
+    --colors-foreground: 330 40% 12%;
+    --colors-card: 0 0% 100%;
+    --colors-popover: 0 0% 100%;
+    --colors-primary: 330 72% 48%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 330 35% 91%;
+    --colors-secondary-foreground: 330 35% 16%;
+    --colors-muted: 330 24% 92%;
+    --colors-muted-foreground: 330 14% 38%;
+    --colors-accent: 330 35% 91%;
+    --colors-border: 330 22% 82%;
+    --colors-input: 330 22% 82%;
+    --colors-ring: 330 72% 48%;
+  }
+
+  [data-theme="light-blue"] {
+    --colors-background: 220 42% 97%;
+    --colors-foreground: 220 40% 12%;
+    --colors-card: 0 0% 100%;
+    --colors-popover: 0 0% 100%;
+    --colors-primary: 220 78% 46%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 220 38% 91%;
+    --colors-secondary-foreground: 220 38% 16%;
+    --colors-muted: 220 24% 92%;
+    --colors-muted-foreground: 220 14% 38%;
+    --colors-accent: 220 38% 91%;
+    --colors-border: 220 22% 82%;
+    --colors-input: 220 22% 82%;
+    --colors-ring: 220 78% 46%;
+  }
+
+  [data-theme="light-red"] {
+    --colors-background: 0 42% 97%;
+    --colors-foreground: 0 38% 12%;
+    --colors-card: 0 0% 100%;
+    --colors-popover: 0 0% 100%;
+    --colors-primary: 355 70% 48%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 0 36% 91%;
+    --colors-secondary-foreground: 0 35% 16%;
+    --colors-muted: 0 22% 92%;
+    --colors-muted-foreground: 0 14% 38%;
+    --colors-accent: 0 36% 91%;
+    --colors-border: 0 22% 82%;
+    --colors-input: 0 22% 82%;
+    --colors-ring: 355 70% 48%;
+  }
+
+  /* Theme: Purple Dark (Tím tối) */
+  [data-theme="dark-purple"] {
+    --colors-background: 260 40% 6%;
+    --colors-foreground: 260 20% 98%;
+    --colors-card: 260 40% 9%;
+    --colors-popover: 260 40% 9%;
+    --colors-primary: 265 89% 65%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 260 20% 16%;
+    --colors-secondary-foreground: 260 20% 98%;
+    --colors-muted: 260 30% 16%;
+    --colors-muted-foreground: 260 10% 65%;
+    --colors-accent: 260 30% 16%;
+    --colors-border: 260 20% 16%;
+    --colors-input: 260 20% 16%;
+    --colors-ring: 265 89% 65%;
+  }
+
+  /* Theme: Blue Dark (Xanh tối) */
+  [data-theme="dark-blue"] {
+    --colors-background: 220 40% 6%;
+    --colors-foreground: 220 20% 98%;
+    --colors-card: 220 40% 9%;
+    --colors-popover: 220 40% 9%;
+    --colors-primary: 220 80% 60%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 220 20% 16%;
+    --colors-secondary-foreground: 220 20% 98%;
+    --colors-muted: 220 30% 16%;
+    --colors-muted-foreground: 220 10% 65%;
+    --colors-accent: 220 30% 16%;
+    --colors-border: 220 20% 16%;
+    --colors-input: 220 20% 16%;
+    --colors-ring: 220 80% 60%;
+  }
+
+  /* Theme: Red Dark (Đỏ tối) */
+  [data-theme="dark-red"] {
+    --colors-background: 0 40% 6%;
+    --colors-foreground: 0 20% 98%;
+    --colors-card: 0 40% 9%;
+    --colors-popover: 0 40% 9%;
+    --colors-primary: 355 78% 62%;
+    --colors-primary-foreground: 0 0% 100%;
+    --colors-secondary: 0 20% 16%;
+    --colors-secondary-foreground: 0 20% 98%;
+    --colors-muted: 0 30% 16%;
+    --colors-muted-foreground: 0 10% 65%;
+
   /* Theme: Purple Dark (Tím tối) */
   [data-theme="dark-purple"] {
     --colors-background: 260 40% 6%;
@@ -126,5 +243,29 @@
     font-family: 'Quicksand', 'Inter', sans-serif;
     margin: 0;
     padding: 0;
+  }
+}
+
+@keyframes accordionDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-accordion-down {
+  animation: accordionDown 0.22s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

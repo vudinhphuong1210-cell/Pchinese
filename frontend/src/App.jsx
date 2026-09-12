@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar.jsx';
 import { DashboardPage } from './pages/DashboardPage.jsx';
+import { HomePage } from './pages/HomePage.jsx';
 import { LessonDetailPage } from './features/catalog/LessonDetailPage.jsx';
 import { LessonPlayerPage } from './features/lesson-player/LessonPlayerPage.jsx';
 import { LoginForm } from './features/auth/LoginForm.jsx';
@@ -14,6 +15,8 @@ import { ContentAdminPage } from './features/admin/content/ContentAdminPage.jsx'
 import { SettingsPage } from './features/settings/SettingsPage.jsx';
 import { EntitlementPage } from './features/entitlement/EntitlementPage.jsx';
 import { AiBuddyPage } from './features/ai-buddy/AiBuddyPage.jsx';
+import { VocabularyPage } from './features/vocabulary/VocabularyPage.jsx';
+import { ReviewPage } from './features/review/ReviewPage.jsx';
 import { PremiumUpgradeModal } from './features/entitlement/PremiumUpgradeModal.jsx';
 import { authSessionStore } from './features/auth/authSessionStore.js';
 import { authApi } from './api/auth.js';
@@ -119,12 +122,25 @@ export default function App() {
 
       {/* Main Workspace */}
       <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-10 overflow-y-auto">
-        {activeTab === 'dashboard' && <DashboardPage onOpenLesson={handleOpenLesson} />}
+        {activeTab === 'dashboard' && (
+          <HomePage
+            authState={authState}
+            onOpenLesson={handleOpenLesson}
+            onSelectTab={handleSelectTab}
+            onOpenUpgradeModal={() => setIsUpgradeModalOpen(true)}
+            onOpenAuth={(mode = 'login') => {
+              setAuthView(mode);
+              setActiveTab('auth');
+            }}
+          />
+        )}
+
+        {activeTab === 'catalog' && <DashboardPage onOpenLesson={handleOpenLesson} />}
 
         {activeTab === 'lesson-detail' && activeLessonId && (
           <LessonDetailPage
             lessonId={activeLessonId}
-            onBack={() => setActiveTab('dashboard')}
+            onBack={() => setActiveTab('catalog')}
             onLogin={() => {
               setActiveTab('auth');
               setAuthView('login');
@@ -147,6 +163,10 @@ export default function App() {
         {activeTab === 'entitlement' && <EntitlementPage />}
 
         {activeTab === 'ai-buddy' && <AiBuddyPage />}
+
+        {activeTab === 'vocabulary' && <VocabularyPage />}
+
+        {activeTab === 'review' && <ReviewPage />}
 
         {activeTab === 'auth' && (
           <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">

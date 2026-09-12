@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { Palette, Moon, Check } from 'lucide-react';
 
 const THEMES = [
-  { id: 'dark-pink', label: 'Hồng Tối (Mặc định)', primaryColor: 'hsl(330, 80%, 60%)' },
-  { id: 'dark', label: 'Tối Grayscale', primaryColor: 'hsl(0, 0%, 98%)' },
-  { id: 'light', label: 'Sáng', primaryColor: 'hsl(42, 95%, 55%)' },
-  { id: 'dark-purple', label: 'Tím Tối', primaryColor: 'hsl(265, 89%, 65%)' },
-  { id: 'dark-blue', label: 'Xanh Tối', primaryColor: 'hsl(220, 80%, 60%)' },
-  { id: 'dark-red', label: 'Đỏ Tối', primaryColor: 'hsl(355, 78%, 62%)' },
+  { id: 'light', label: 'Sáng' },
+  { id: 'dark', label: 'Tối' },
+  { id: 'light-purple', label: 'Tím Sáng' },
+  { id: 'dark-purple', label: 'Tím Tối' },
+  { id: 'light-pink', label: 'Hồng Sáng' },
+  { id: 'dark-pink', label: 'Hồng Tối (Mặc định)' },
+  { id: 'light-blue', label: 'Xanh Sáng' },
+  { id: 'dark-blue', label: 'Xanh Tối' },
+  { id: 'light-red', label: 'Đỏ Sáng' },
+  { id: 'dark-red', label: 'Đỏ Tối' },
 ];
 
 export function ThemePicker({ currentTheme, onSelectTheme, variant = 'full' }) {
@@ -80,10 +84,9 @@ export function ThemePicker({ currentTheme, onSelectTheme, variant = 'full' }) {
                 data-testid={`theme-option-${theme.id}`}
               >
                 <div className="flex items-center space-x-2">
-                  <span
-                    className="w-3 h-3 rounded-full border border-white/20 shrink-0"
-                    style={{ backgroundColor: theme.primaryColor }}
-                  />
+                  <span className="flex w-4 h-4 items-center justify-center rounded-sm bg-secondary text-primary shrink-0" aria-hidden="true">
+                    <Palette className="w-3 h-3" />
+                  </span>
                   <span>{theme.label}</span>
                 </div>
                 {currentTheme === theme.id && <Check className="w-3.5 h-3.5 text-primary" />}

@@ -73,7 +73,7 @@ Frontend route guard chỉ phục vụ UX; backend vẫn kiểm tra authenticati
 
 | Frontend URL | Page/component | Backend API chính | Guard UX |
 | --- | --- | --- | --- |
-| `/` | Home/Catalog | `GET /topics`, `GET /lessons` | Public |
+| `/` | Home | `GET /topics`, `GET /lessons`; authenticated learner also uses `GET /daily-streak`, `POST /daily-streak/check-ins` | Public shell; streak requires Learner |
 | `/login` | SignInPage | auth login/refresh | Guest only |
 | `/register` | RegisterPage | auth register/verification | Guest only |
 | `/verify-email` | VerifyEmailPage | email verification confirm | Guest only |
@@ -205,6 +205,8 @@ Các route đánh dấu `MVP` được chuẩn hóa trong file này. Response DT
 | `lessons.getPlayback` | `GET /lessons/{lessonId}/playback` | Path UUID | approved playback metadata, current unlocked ordered segments, owned progress/watermark | Signed-in learner only; first permitted Player entry lazy creates/reuses progress | MVP |
 | `lessonProgress.get` | `GET /lesson-progress` | `lessonId` UUID | caller's progress row or not-started projection | Learner owner; catalog/summary read creates no row | MVP |
 | `lessonProgress.playbackEvent` | `POST /lesson-progress/{lessonId}/playback-events` | `{ segmentId, event: "PROGRESS" | "ENDED", positionMs, clientEventId }` | authoritative progress, playback watermark, completion state | Only current unlocked segment; accepted automatic end completes once and duplicate/concurrent event returns latest state | MVP |
+| `dailyStreak.get` | `GET /daily-streak` | — | current/longest streak, total XP, learner-local today and seven-day week | Learner owner; date derives from saved profile timezone | MVP |
+| `dailyStreak.checkIn` | `POST /daily-streak/check-ins` | Empty body | updated daily streak projection | Learner owner; user lock + unique user/date constraint awards 10 XP once | MVP |
 
 Quy tắc playback: route chỉ trả metadata đã được backend phê duyệt sau publication/access check. Media Provider vẫn không là authorization source; không nhận media URL/identifier do client gửi. Player chỉ cho seek lùi trong server-validated watermark, không cho seek tiến vượt watermark. Chỉ accepted `ENDED` của current segment mới complete segment, mở đúng segment tiếp theo, và chỉ complete lesson khi tất cả segment theo thứ tự đã complete. Dictation/Shadowing không được gọi route này để unlock hoặc complete segment.
 
@@ -344,6 +346,8 @@ Những route sau đã được nêu rõ trong `CLAUDE.md`, nhưng chỉ mở kh
 api.auth.login(request)
 api.lessons.getPlayback(lessonId)
 api.lessonProgress.sendPlaybackEvent(lessonId, request)
+api.dailyStreak.get()
+api.dailyStreak.checkIn()
 api.dictation.submit(dictationAttemptId, request)
 api.shadowing.assess(request)
 api.reviews.submit(srsScheduleId, request)

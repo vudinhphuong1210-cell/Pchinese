@@ -78,4 +78,22 @@ describe('F01 sidebar', () => {
     fireEvent.click(expandBtn);
     expect(screen.getByText('PCHINESE')).toBeInTheDocument();
   });
+
+  test('offers all ten semantic themes', () => {
+    render(
+      <Sidebar
+        activeTab="dashboard"
+        onSelectTab={jest.fn()}
+        currentTheme="dark-pink"
+        onSelectTheme={jest.fn()}
+        authState={{ isAuthenticated: true, isAdmin: false }}
+        onLogout={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByTestId('theme-picker-trigger'));
+    expect(screen.getAllByTestId(/^theme-option-/)).toHaveLength(10);
+    expect(screen.getByTestId('theme-option-light-blue')).toBeInTheDocument();
+    expect(screen.getByTestId('theme-option-dark-red')).toBeInTheDocument();
+  });
 });

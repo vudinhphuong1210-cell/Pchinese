@@ -14,6 +14,8 @@ import {
   LogOut,
   PanelLeft,
   MessageCircle,
+  Menu,
+  X,
 } from 'lucide-react';
 
 export function Sidebar({
@@ -31,6 +33,7 @@ export function Sidebar({
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(() => {
     return localStorage.getItem('pchinese_sidebar_collapsed') === 'true';
   });
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   const isCollapsed = propIsCollapsed !== undefined ? propIsCollapsed : internalIsCollapsed;
 
@@ -91,17 +94,27 @@ export function Sidebar({
             <button
               type="button"
               onClick={handleToggleCollapse}
-              className="w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent flex items-center justify-center transition-colors"
+              className="hidden lg:flex w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent items-center justify-center transition-colors"
               title="Thu gọn thanh bên"
               data-testid="sidebar-toggle-btn"
             >
               <PanelLeft className="w-5 h-5" />
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setIsMobileOpen((open) => !open)}
+            className="flex lg:hidden h-11 w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded={isMobileOpen}
+            aria-label={isMobileOpen ? 'Đóng menu điều hướng' : 'Mở menu điều hướng'}
+            data-testid="mobile-navigation-toggle"
+          >
+            {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
 
         {/* Group 1: TỔNG QUAN */}
-        <div className="space-y-1.5">
+        <div className={`${isMobileOpen ? 'block' : 'hidden'} space-y-1.5 lg:block`}>
           {!isCollapsed ? (
             <div className="flex items-center px-2 space-x-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               <span>TỔNG QUAN</span>
@@ -134,7 +147,7 @@ export function Sidebar({
         </div>
 
         {/* Group 2: LUYỆN TẬP */}
-        <div className="space-y-1.5 pt-1">
+        <div className={`${isMobileOpen ? 'block' : 'hidden'} space-y-1.5 pt-1 lg:block`}>
           {!isCollapsed ? (
             <div className="flex items-center px-2 space-x-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               <span>LUYỆN TẬP</span>
@@ -147,7 +160,7 @@ export function Sidebar({
           <nav className="space-y-1">
             <button
               type="button"
-              onClick={() => onSelectTab('dashboard')}
+              onClick={() => onSelectTab('catalog')}
               title="Dictation"
               className={`${
                 isCollapsed
@@ -180,7 +193,7 @@ export function Sidebar({
 
             <button
               type="button"
-              onClick={() => onSelectTab('dashboard')}
+              onClick={() => onSelectTab('catalog')}
               title="Shadowing"
               className={`${
                 isCollapsed
@@ -194,7 +207,7 @@ export function Sidebar({
 
             <button
               type="button"
-              onClick={() => onSelectTab('dashboard')}
+              onClick={() => onSelectTab('catalog')}
               title="Luyện nói"
               className={`${
                 isCollapsed
@@ -208,7 +221,7 @@ export function Sidebar({
 
             <button
               type="button"
-              onClick={() => onSelectTab('dashboard')}
+              onClick={() => onSelectTab('vocabulary')}
               title="Luyện từ vựng"
               className={`${
                 isCollapsed
@@ -224,7 +237,7 @@ export function Sidebar({
 
         {/* Group 3: QUẢN TRỊ (Only when authenticated) */}
         {authState.isAuthenticated && authState.isAdmin && (
-          <div className="space-y-1.5 pt-1">
+          <div className={`${isMobileOpen ? 'block' : 'hidden'} space-y-1.5 pt-1 lg:block`}>
             {!isCollapsed ? (
               <div className="flex items-center px-2 space-x-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                 <span>QUẢN TRỊ</span>
@@ -295,7 +308,7 @@ export function Sidebar({
       </div>
 
       {/* Footer Area */}
-      <div className="space-y-3 pt-3 border-t border-border/60">
+      <div className={`${isMobileOpen ? 'block' : 'hidden'} space-y-3 pt-3 border-t border-border/60 lg:block`}>
         {/* Upgrade Premium Card */}
         <button
           type="button"
